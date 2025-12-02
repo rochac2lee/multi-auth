@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Aplicação Master
+  master-app:
+    build:
+      context: ./master
+      dockerfile: Dockerfile
+    container_name: master-laravel
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./master:/var/www/html
+      - master-storage:/var/www/html/storage
+      - master-vendor:/var/www/html/vendor
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=master-db
+      - DB_PORT=3306
+      - DB_DATABASE=master_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+    depends_on:
+      - master-db
+    networks:
+      - laravel-network
+
+  # Banco de dados Master
+  master-db:
+    image: mysql:8.0
+    container_name: master-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=master_db
+    ports:
+      - "33061:3306"
+    volumes:
+      - master-db-data:/var/lib/mysql
+    networks:
+      - laravel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Aplicação Second
+  second-app:
+    build:
+      context: ./second
+      dockerfile: Dockerfile
+    container_name: second-laravel
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./second:/var/www/html
+      - second-storage:/var/www/html/storage
+      - second-vendor:/var/www/html/vendor
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=second-db
+      - DB_PORT=3306
+      - DB_DATABASE=second_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+    depends_on:
+      - second-db
+    networks:
+      - laravel-network
+
+  # Banco de dados Second
+  second-db:
+    image: mysql:8.0
+    container_name: second-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=second_db
+    ports:
+      - "33062:3306"
+    volumes:
+      - second-db-data:/var/lib/mysql
+    networks:
+      - laravel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Aplicação Third
+  third-app:
+    build:
+      context: ./third
+      dockerfile: Dockerfile
+    container_name: third-laravel
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./third:/var/www/html
+      - third-storage:/var/www/html/storage
+      - third-vendor:/var/www/html/vendor
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=third-db
+      - DB_PORT=3306
+      - DB_DATABASE=third_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=rootpassword
+    depends_on:
+      - third-db
+    networks:
+      - laravel-network
+
+  # Banco de dados Third
+  third-db:
+    image: mysql:8.0
+    container_name: third-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=third_db
+    ports:
+      - "33063:3306"
+    volumes:
+      - third-db-data:/var/lib/mysql
+    networks:
+      - laravel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOSTS=master-db,second-db,third-db
+      - PMA_PORTS=3306,3306,3306
+      - PMA_USER=root
+      - PMA_PASSWORD=rootpassword
+      - UPLOAD_LIMIT=300M
+    depends_on:
+      - master-db
+      - second-db
+      - third-db
+    networks:
+      - laravel-network
+
+networks:
+  laravel-network:
+    driver: bridge
+
+volumes:
+  master-db-data:
+  second-db-data:
+  third-db-data:
+  master-storage:
+  second-storage:
+  third-storage:
+  master-vendor:
+  second-vendor:
+  third-vendor:
