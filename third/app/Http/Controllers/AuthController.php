@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
 {
@@ -21,36 +20,38 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $token = Session::get('sso_token');
-        $user = Auth::user();
+        $token = $request->cookie('sso_token');
 
-        // Fazer logout local primeiro
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        Session::forget('sso_token');
-
-        // Revogar token no master DEPOIS do logout local
-        // Isso garante que mesmo se houver erro, o logout local já foi feito
+        // Revogar token no master
         if ($token) {
             try {
-                // Chamar logout no master para limpar todas as sessões
+                $decryptedToken = decrypt($token);
                 $response = Http::timeout(5)->withHeaders([
                     'Accept' => 'application/json',
-                    'Authorization' => 'Bearer ' . $token,
+                    'Authorization' => 'Bearer ' . $decryptedToken,
                 ])->post('http://master-laravel:8000/api/logout');
 
-                // Aguardar um pouco para garantir que o master processou o logout
                 if ($response->successful()) {
-                    usleep(500000); // 0.5 segundos
+                    Log::info('Token revogado no master pelo cliente.');
+                } else {
+                    Log::warning('Falha ao revogar token no master pelo cliente: ' . $response->body());
                 }
             } catch (Exception $e) {
-                Log::error('Erro ao revogar token no master: ' . $e->getMessage());
+                Log::error('Erro ao revogar token no master pelo cliente: ' . $e->getMessage());
             }
         }
 
-        // Redirecionar para o master login (que não tem sessão ativa agora)
-        return redirect()->away('http://localhost:8001/login');
+        // Fazer logout local
+        Auth::logout();
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        // Limpar cookie local e redirecionar para o master login
+        return redirect()->away('http://localhost:8001/login')
+            ->cookie('sso_token', '', -1, '/', null, false, false);
     }
 }
+
 
