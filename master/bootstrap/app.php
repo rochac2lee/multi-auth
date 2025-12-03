@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'check.auth' => \App\Http\Middleware\CheckAuth::class,
+            'passport.token' => \App\Http\Middleware\CheckPassportToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
