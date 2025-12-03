@@ -43,18 +43,32 @@
     </div>
 
     <script>
-        // Redirecionar para as outras aplicações
+        // Redirecionar para as outras aplicações usando iframes invisíveis
         const secondAppUrl = '{{ $secondAppUrl }}';
         const thirdAppUrl = '{{ $thirdAppUrl }}';
 
-        // Abrir em nova aba/janela ou usar iframe
-        window.open(secondAppUrl, '_blank');
-        window.open(thirdAppUrl, '_blank');
+        // Criar iframes invisíveis para propagar o token
+        const iframeSecond = document.createElement('iframe');
+        iframeSecond.style.display = 'none';
+        iframeSecond.style.width = '0';
+        iframeSecond.style.height = '0';
+        iframeSecond.style.border = 'none';
+        iframeSecond.src = secondAppUrl;
+        document.body.appendChild(iframeSecond);
 
-        // Redirecionar a janela atual após um pequeno delay
+        const iframeThird = document.createElement('iframe');
+        iframeThird.style.display = 'none';
+        iframeThird.style.width = '0';
+        iframeThird.style.height = '0';
+        iframeThird.style.border = 'none';
+        iframeThird.src = thirdAppUrl;
+        document.body.appendChild(iframeThird);
+
+        // Redirecionar a janela atual com token na URL para garantir que o middleware leia
+        const token = '{{ $token }}';
         setTimeout(() => {
-            window.location.href = '/';
-        }, 1000);
+            window.location.href = '/?token=' + encodeURIComponent(token);
+        }, 2000);
     </script>
 </body>
 </html>
