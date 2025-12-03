@@ -22,32 +22,50 @@ class CheckSSO
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Se já estiver autenticado localmente, continuar
-        if (Auth::check()) {
-            return $next($request);
-        }
+        // Tentar obter token do cookie ou query string
+        $token = $request->cookie('sso_token') ?? $request->query('token');
 
-        // Verificar se há token na query string (vindo do callback)
-        $token = $request->get('token');
         if ($token) {
-            // Token fornecido, validar e criar sessão
-            return $this->handleToken($request, $token, $next);
+            // Se o token estiver no cookie, pode estar encryptado
+            if ($request->cookie('sso_token')) {
+                try {
+                    $token = decrypt($token);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to decrypt sso_token cookie in client: ' . $e->getMessage());
+                    return $this->redirectToMasterLogin($request);
+                }
+            }
+
+            // Validar token com o master
+            if ($this->validateTokenWithMaster($token)) {
+                // Se o token veio na query string, salvar no cookie e remover da URL
+                if ($request->has('token')) {
+                    $url = $request->url();
+                    $query = $request->query();
+                    unset($query['token']);
+                    $cleanUrl = $url . (!empty($query) ? '?' . http_build_query($query) : '');
+
+                    return redirect($cleanUrl)
+                        ->cookie('sso_token', encrypt($token), 60 * 24 * 15, '/', null, false, false);
+                }
+
+                // Token válido, continuar
+                return $next($request);
+            }
         }
 
-        // Se não estiver autenticado, redirecionar para o master login
-        // O master verificará se já está logado e redirecionará com token
-        $baseUrl = $request->url();
-        $redirectUri = urlencode($baseUrl);
-        $masterLoginUrl = 'http://localhost:8001/login?redirect_uri=' . $redirectUri;
-
-        return redirect($masterLoginUrl);
+        // Se não houver token válido, redirecionar para o master login
+        return $this->redirectToMasterLogin($request);
     }
 
-    private function handleToken(Request $request, string $token, Closure $next): Response
+    /**
+     * Valida o token com o master
+     */
+    private function validateTokenWithMaster(string $token): bool
     {
         try {
             // Validar token com o master
-            $response = Http::withHeaders([
+            $response = Http::timeout(5)->withHeaders([
                 'Accept' => 'application/json',
                 'Authorization' => 'Bearer ' . $token,
             ])->get('http://master-laravel:8000/api/user');
@@ -64,29 +82,24 @@ class CheckSSO
                 }
                 $user->save();
 
-                // Fazer login do usuário
+                // Autenticar o usuário localmente para Auth::check() funcionar
                 Auth::login($user);
 
-                // Armazenar token na sessão
-                session(['sso_token' => $token]);
-
-                // Remover token da URL e redirecionar
-                $url = $request->url();
-                $query = $request->query();
-                unset($query['token']);
-                $cleanUrl = $url . (!empty($query) ? '?' . http_build_query($query) : '');
-
-                return redirect($cleanUrl);
+                return true;
             }
         } catch (Exception $e) {
-            Log::error('Erro ao validar token SSO: ' . $e->getMessage());
+            Log::error('Erro ao validar token SSO com master: ' . $e->getMessage());
         }
 
-        // Token inválido, redirecionar para login
-        // IMPORTANTE: Usar apenas a URL base, sem query parameters
-        $baseUrl = $request->url();
+        return false;
+    }
+
+    private function redirectToMasterLogin(Request $request): Response
+    {
+        $baseUrl = $request->fullUrl();
         $redirectUri = urlencode($baseUrl);
-        return redirect('http://localhost:8001/login?redirect_uri=' . $redirectUri);
+        $masterLoginUrl = 'http://localhost:8001/login?redirect_uri=' . $redirectUri;
+        return redirect($masterLoginUrl);
     }
 }
 
