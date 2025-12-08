@@ -34,23 +34,31 @@ class CheckSSO
             return $this->handleToken($request, $token, $next);
         }
 
-        // Se não estiver autenticado, redirecionar para o master login
-        // O master verificará se já está logado e redirecionará com token
+        // Se não estiver autenticado, redirecionar para o account login
+        // O account verificará se já está logado e redirecionará com token
         $baseUrl = $request->url();
         $redirectUri = urlencode($baseUrl);
-        $masterLoginUrl = 'http://localhost:8001/login?redirect_uri=' . $redirectUri;
+        $accountUrl = env('ACCOUNT_URL', 'http://account.test:8001');
+        $accountLoginUrl = $accountUrl . '/login?redirect_uri=' . $redirectUri;
 
-        return redirect($masterLoginUrl);
+        return redirect($accountLoginUrl);
     }
 
     private function handleToken(Request $request, string $token, Closure $next): Response
     {
         try {
-            // Validar token com o master
+            // Validar token com o account
+            // Usar o nome do serviço Docker para comunicação interna
+            $accountUrl = env('ACCOUNT_URL', 'http://account-laravel:8000');
+            // Se estiver usando domínio .test, usar o nome do serviço para comunicação interna
+            if (str_contains($accountUrl, '.test')) {
+                $accountUrl = 'http://account-laravel:8000';
+            }
+
             $response = Http::withHeaders([
                 'Accept' => 'application/json',
                 'Authorization' => 'Bearer ' . $token,
-            ])->get('http://master-laravel:8000/api/user');
+            ])->get($accountUrl . '/api/user');
 
             if ($response->successful()) {
                 $userData = $response->json();
@@ -71,12 +79,14 @@ class CheckSSO
                 session(['sso_token' => $token]);
 
                 // Remover token da URL e redirecionar
+                // IMPORTANTE: Usar redirect()->to() para evitar que o middleware seja aplicado novamente
                 $url = $request->url();
                 $query = $request->query();
                 unset($query['token']);
                 $cleanUrl = $url . (!empty($query) ? '?' . http_build_query($query) : '');
 
-                return redirect($cleanUrl);
+                // Fazer redirect sem passar pelo middleware novamente
+                return redirect()->to($cleanUrl);
             }
         } catch (Exception $e) {
             Log::error('Erro ao validar token SSO: ' . $e->getMessage());
@@ -86,7 +96,8 @@ class CheckSSO
         // IMPORTANTE: Usar apenas a URL base, sem query parameters
         $baseUrl = $request->url();
         $redirectUri = urlencode($baseUrl);
-        return redirect('http://localhost:8001/login?redirect_uri=' . $redirectUri);
+        $accountUrl = env('ACCOUNT_URL', 'http://account.test:8001');
+        return redirect($accountUrl . '/login?redirect_uri=' . $redirectUri);
     }
 }
 

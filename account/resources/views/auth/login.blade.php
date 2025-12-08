@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Master App</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Login - Account App</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -71,7 +72,7 @@
 </head>
 <body>
     <div class="login-container">
-        <h1>Login - Master App</h1>
+        <h1>Login - Account App</h1>
         <form method="POST" action="{{ route('login') }}">
             @csrf
             @if(request('redirect_uri') || old('redirect_uri'))

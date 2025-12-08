@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Session;
 use App\Models\User;
@@ -13,9 +13,31 @@ class AuthController extends Controller
 {
     public function showLoginForm(Request $request)
     {
-        // Verificar se já estiver logado na sessão e houver redirect_uri, gerar token e redirecionar
+        // Verificar se já estiver logado na sessão E se a sessão existe no banco
+        // Isso evita reautenticação após logout quando a sessão foi deletada
         if (Auth::check() && $request->has('redirect_uri')) {
             $user = Auth::user();
+            $sessionId = $request->session()->getId();
+
+            // Verificar se a sessão realmente existe no banco de dados
+            // Se não existir, significa que foi deletada no logout
+            if (config('session.driver') === 'database') {
+                $sessionsTable = config('session.table', 'sessions');
+                $sessionExists = DB::table($sessionsTable)
+                    ->where('id', $sessionId)
+                    ->where('user_id', $user->id)
+                    ->exists();
+
+                // Se a sessão não existir no banco, fazer logout e mostrar tela de login
+                if (!$sessionExists) {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return view('auth.login');
+                }
+            }
+
+            // Se a sessão existe, gerar token e redirecionar
             $token = $user->createToken('SSO Token')->accessToken;
             $redirectUri = urldecode($request->get('redirect_uri'));
             $cleanUri = preg_replace('/[?#].*$/', '', $redirectUri);
@@ -25,47 +47,9 @@ class AuthController extends Controller
             return redirect()->away($cleanUri . '?token=' . urlencode($token));
         }
 
-        // Verificar se há uma sessão ativa no banco de dados com user_id
-        // Buscar nas últimas sessões ativas (últimas 2 horas) ordenadas por last_activity
-        if ($request->has('redirect_uri')) {
-            $twoHoursAgo = now()->subHours(2)->timestamp;
-            $existingSession = Session::where('last_activity', '>', $twoHoursAgo)
-                ->whereNotNull('user_id')
-                ->orderBy('last_activity', 'desc')
-                ->first();
-
-            if ($existingSession && $existingSession->user_id) {
-                $user = User::find($existingSession->user_id);
-
-                if ($user) {
-                    // Reutilizar a sessão existente em vez de criar uma nova
-                    $currentSessionId = $request->session()->getId();
-
-                    // Limpar todas as outras sessões do mesmo usuário, mantendo apenas a existente
-                    Session::where('user_id', $user->id)
-                        ->whereRaw('id != ?', [$existingSession->id])
-                        ->delete();
-
-                    // Se a sessão atual é diferente da existente, deletar a atual
-                    if ($currentSessionId !== $existingSession->id) {
-                        Session::where('id', $currentSessionId)->delete();
-                        // Usar a sessão existente
-                        $request->session()->setId($existingSession->id);
-                    }
-
-                    // Autenticar o usuário reutilizando a sessão existente
-                    Auth::setUser($user);
-
-                    $token = $user->createToken('SSO Token')->accessToken;
-                    $redirectUri = urldecode($request->get('redirect_uri'));
-                    $cleanUri = preg_replace('/[?#].*$/', '', $redirectUri);
-                    if (!parse_url($cleanUri, PHP_URL_PATH)) {
-                        $cleanUri = rtrim($cleanUri, '/') . '/';
-                    }
-                    return redirect()->away($cleanUri . '?token=' . urlencode($token));
-                }
-            }
-        }
+        // NÃO reautenticar automaticamente baseado em sessões do banco
+        // Isso evita reautenticação após logout
+        // O usuário deve fazer login explicitamente
 
         return view('auth.login');
     }
@@ -74,7 +58,7 @@ class AuthController extends Controller
     {
         // Esta view será usada pelos client apps para verificar autenticação via JavaScript
         // O JavaScript fará uma requisição com credentials: 'include' para acessar os cookies de sessão
-        $redirectUri = $request->get('redirect_uri', 'http://localhost:8001/');
+        $redirectUri = $request->get('redirect_uri', env('APP_URL') . '/');
         return view('auth.verify', [
             'redirectUri' => $redirectUri,
         ]);
@@ -149,8 +133,8 @@ class AuthController extends Controller
             }
 
             // Caso contrário, redirecionar para todas as apps
-            $secondAppUrl = 'http://localhost:8002?token=' . $token;
-            $thirdAppUrl = 'http://localhost:8003?token=' . $token;
+            $secondAppUrl = env('SECOND_APP_URL', 'http://second.test') . '?token=' . $token;
+            $thirdAppUrl = env('THIRD_APP_URL', 'http://third.test') . '?token=' . $token;
 
             return response()
                 ->view('auth.redirect', [
@@ -193,17 +177,15 @@ class AuthController extends Controller
             // Deletar todos os tokens do usuário
             $user->tokens()->delete();
 
-            // Limpar user_id de TODAS as sessões do usuário no banco de dados
+            // Deletar TODAS as sessões do usuário no banco de dados (não apenas limpar user_id)
             // Isso garante que o middleware CheckAuth não vai reautenticar o usuário
-            Session::where('user_id', $user->id)
-                ->update(['user_id' => null]);
+            Session::where('user_id', $user->id)->delete();
 
-            \Log::info('Logout - Limpou sessões do usuário ID: ' . $user->id);
+            \Log::info('Logout - Deletou todas as sessões do usuário ID: ' . $user->id);
         } else {
-            // Se não houver usuário autenticado, limpar a sessão atual mesmo assim (se houver)
+            // Se não houver usuário autenticado, deletar a sessão atual mesmo assim (se houver)
             if ($sessionId) {
-                Session::where('id', $sessionId)
-                    ->update(['user_id' => null]);
+                Session::where('id', $sessionId)->delete();
             }
             \Log::warning('Logout - Nenhum usuário encontrado para fazer logout');
         }
@@ -221,9 +203,15 @@ class AuthController extends Controller
                 ->cookie('sso_token', '', -1, '/', null, false, false);
         }
 
-        // Se for requisição web, redirecionar
-        $response = redirect('/');
-        return $response->cookie('sso_token', '', -1, '/', null, false, false);
+        // Se for requisição web, retornar view que limpa localStorage e depois redireciona
+        // Isso garante que o localStorage seja limpo no navegador
+        return response()->view('auth.logout')
+            ->withHeaders([
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ])
+            ->cookie('sso_token', '', -1, '/', null, false, false);
     }
 
     public function getUser(Request $request)
@@ -248,8 +236,15 @@ class AuthController extends Controller
             $origin = $request->headers->get('Origin');
             $response = response()->json(['error' => 'Unauthenticated'], 401);
 
+            $allowedOrigins = [
+                'http://second.test',
+                'http://third.test',
+                'http://localhost:8002',
+                'http://localhost:8003',
+            ];
+
             $response->header('Access-Control-Allow-Credentials', 'true');
-            if ($origin && in_array($origin, ['http://localhost:8002', 'http://localhost:8003'])) {
+            if ($origin && in_array($origin, $allowedOrigins)) {
                 $response->header('Access-Control-Allow-Origin', $origin);
             } else {
                 $response->header('Access-Control-Allow-Origin', '*');

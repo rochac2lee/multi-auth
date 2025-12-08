@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'account_url' => env('ACCOUNT_URL', 'http://account.test:8001'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

@@ -19,11 +19,18 @@ Route::options('/api/generate-token', function (Request $request) {
     $origin = $request->headers->get('Origin');
     $response = response('', 200);
 
+    $allowedOrigins = [
+        'http://second.test',
+        'http://third.test',
+        'http://localhost:8002',
+        'http://localhost:8003',
+    ];
+
     $response->header('Access-Control-Allow-Credentials', 'true');
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN');
 
-    if ($origin && in_array($origin, ['http://localhost:8002', 'http://localhost:8003'])) {
+    if ($origin && in_array($origin, $allowedOrigins)) {
         $response->header('Access-Control-Allow-Origin', $origin);
     } else {
         $response->header('Access-Control-Allow-Origin', '*');
@@ -34,6 +41,13 @@ Route::options('/api/generate-token', function (Request $request) {
 
 Route::get('/api/check-auth', function (Request $request) {
     $origin = $request->headers->get('Origin');
+
+    $allowedOrigins = [
+        'http://second.test',
+        'http://third.test',
+        'http://localhost:8002',
+        'http://localhost:8003',
+    ];
 
     \Log::info('check-auth - Session ID: ' . $request->session()->getId());
     \Log::info('check-auth - Auth::check(): ' . (Auth::check() ? 'true' : 'false'));
@@ -53,7 +67,7 @@ Route::get('/api/check-auth', function (Request $request) {
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
-    if ($origin && in_array($origin, ['http://localhost:8002', 'http://localhost:8003'])) {
+    if ($origin && in_array($origin, $allowedOrigins)) {
         $response->header('Access-Control-Allow-Origin', $origin);
     } else {
         $response->header('Access-Control-Allow-Origin', '*');
@@ -66,11 +80,18 @@ Route::options('/api/check-auth', function (Request $request) {
     $origin = $request->headers->get('Origin');
     $response = response('', 200);
 
+    $allowedOrigins = [
+        'http://second.test',
+        'http://third.test',
+        'http://localhost:8002',
+        'http://localhost:8003',
+    ];
+
     $response->header('Access-Control-Allow-Credentials', 'true');
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
 
-    if ($origin && in_array($origin, ['http://localhost:8002', 'http://localhost:8003'])) {
+    if ($origin && in_array($origin, $allowedOrigins)) {
         $response->header('Access-Control-Allow-Origin', $origin);
     } else {
         $response->header('Access-Control-Allow-Origin', '*');

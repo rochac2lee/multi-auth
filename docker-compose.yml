@@ -1,41 +1,41 @@
 version: '3.8'
 
 services:
-  # Aplicação Master
-  master-app:
+  # Aplicação Account
+  account-app:
     build:
-      context: ./master
+      context: ./account
       dockerfile: Dockerfile
-    container_name: master-laravel
+    container_name: account-laravel
     ports:
       - "8001:8000"
     volumes:
-      - ./master:/var/www/html
-      - master-storage:/var/www/html/storage
-      - master-vendor:/var/www/html/vendor
+      - ./account:/var/www/html
+      - account-storage:/var/www/html/storage
+      - account-vendor:/var/www/html/vendor
     environment:
       - DB_CONNECTION=mysql
-      - DB_HOST=master-db
+      - DB_HOST=account-db
       - DB_PORT=3306
-      - DB_DATABASE=master_db
+      - DB_DATABASE=account_db
       - DB_USERNAME=root
       - DB_PASSWORD=rootpassword
     depends_on:
-      - master-db
+      - account-db
     networks:
       - laravel-network
 
-  # Banco de dados Master
-  master-db:
+  # Banco de dados Account
+  account-db:
     image: mysql:8.0
-    container_name: master-mysql
+    container_name: account-mysql
     environment:
       - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=master_db
+      - MYSQL_DATABASE=account_db
     ports:
       - "33061:3306"
     volumes:
-      - master-db-data:/var/lib/mysql
+      - account-db-data:/var/lib/mysql
     networks:
       - laravel-network
     healthcheck:
@@ -134,13 +134,13 @@ services:
     ports:
       - "8080:80"
     environment:
-      - PMA_HOSTS=master-db,second-db,third-db
+      - PMA_HOSTS=account-db,second-db,third-db
       - PMA_PORTS=3306,3306,3306
       - PMA_USER=root
       - PMA_PASSWORD=rootpassword
       - UPLOAD_LIMIT=300M
     depends_on:
-      - master-db
+      - account-db
       - second-db
       - third-db
     networks:
@@ -151,12 +151,12 @@ networks:
     driver: bridge
 
 volumes:
-  master-db-data:
+  account-db-data:
   second-db-data:
   third-db-data:
-  master-storage:
+  account-storage:
   second-storage:
   third-storage:
-  master-vendor:
+  account-vendor:
   second-vendor:
   third-vendor:

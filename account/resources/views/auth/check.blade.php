@@ -20,9 +20,10 @@
     <p>Verificando autenticação...</p>
     <script>
         const redirectUri = '{{ $redirectUri ?? "" }}';
+        const appUrl = '{{ config('app.url') }}';
 
         // Tentar verificar autenticação fazendo requisição com credentials
-        fetch('http://localhost:8001/api/check-auth', {
+        fetch(appUrl + '/api/check-auth', {
             method: 'GET',
             credentials: 'include', // Importante: incluir cookies
             headers: {
@@ -39,7 +40,7 @@
         .then(data => {
             if (data.authenticated) {
                 // Usuário está autenticado, obter token
-                return fetch('http://localhost:8001/api/generate-token', {
+                return fetch(appUrl + '/api/generate-token', {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -57,17 +58,17 @@
             if (tokenData.token && redirectUri) {
                 window.location.href = redirectUri + (redirectUri.includes('?') ? '&' : '?') + 'token=' + tokenData.token;
             } else if (redirectUri) {
-                window.location.href = 'http://localhost:8001/login?redirect_uri=' + encodeURIComponent(redirectUri);
+                window.location.href = appUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
             } else {
-                window.location.href = 'http://localhost:8001/';
+                window.location.href = appUrl + '/';
             }
         })
         .catch(() => {
             // Não autenticado ou erro, redirecionar para login
             if (redirectUri) {
-                window.location.href = 'http://localhost:8001/login?redirect_uri=' + encodeURIComponent(redirectUri);
+                window.location.href = appUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
             } else {
-                window.location.href = 'http://localhost:8001/login';
+                window.location.href = appUrl + '/login';
             }
         });
     </script>

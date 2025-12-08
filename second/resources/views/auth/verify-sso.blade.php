@@ -40,58 +40,11 @@
     </div>
     <script>
         const redirectUri = '{{ $redirectUri }}';
+        const accountUrl = '{{ config('app.account_url', env('ACCOUNT_URL', 'http://account.test:8001')) }}';
 
-        // Verificar se está logado no master
-        fetch('http://localhost:8001/api/check-auth', {
-            method: 'GET',
-            credentials: 'include', // Incluir cookies
-            headers: {
-                'Accept': 'application/json',
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Não autenticado');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.authenticated) {
-                // Está logado, obter token
-                return fetch('http://localhost:8001/api/generate-token', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
-            } else {
-                // Não está logado, redirecionar para login
-                window.location.href = 'http://localhost:8001/login?redirect_uri=' + encodeURIComponent(redirectUri);
-                return Promise.reject('Não autenticado');
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Erro ao obter token');
-            }
-            return response.json();
-        })
-        .then(tokenData => {
-            if (tokenData.token) {
-                // Redirecionar com token para criar sessão local
-                const separator = redirectUri.includes('?') ? '&' : '?';
-                window.location.href = redirectUri + separator + 'token=' + tokenData.token;
-            } else {
-                window.location.href = 'http://localhost:8001/login?redirect_uri=' + encodeURIComponent(redirectUri);
-            }
-        })
-        .catch(() => {
-            // Erro ou não autenticado, redirecionar para login
-            window.location.href = 'http://localhost:8001/login?redirect_uri=' + encodeURIComponent(redirectUri);
-        });
+        // Como estamos em domínios diferentes, não podemos usar cookies compartilhados
+        // Redirecionar diretamente para o account com redirect_uri
+        window.location.href = accountUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
     </script>
 </body>
 </html>
