@@ -1,8 +1,13 @@
 version: '3.8'
 
+# desmembrar o account 
+# Vai se chamar youfocus 
+# desmembrar o checkout do Selpics
+# Horus
+
 services:
   # Aplicação Account
-  account-app:
+  account:
     build:
       context: ./account
       dockerfile: Dockerfile
@@ -15,18 +20,27 @@ services:
       - account-vendor:/var/www/html/vendor
     environment:
       - DB_CONNECTION=mysql
-      - DB_HOST=account-db
+      - DB_HOST=account-database
       - DB_PORT=3306
       - DB_DATABASE=account_db
       - DB_USERNAME=root
       - DB_PASSWORD=rootpassword
+      - MAIL_MAILER=smtp
+      - MAIL_HOST=mailhog
+      - MAIL_PORT=1025
+      - MAIL_USERNAME=null
+      - MAIL_PASSWORD=null
+      - MAIL_ENCRYPTION=null
+      - MAIL_FROM_ADDRESS=noreply@account.test
+      - MAIL_FROM_NAME="Account App"
     depends_on:
-      - account-db
+      - account-database
+      - mailhog
     networks:
       - laravel-network
 
   # Banco de dados Account
-  account-db:
+  account-database:
     image: mysql:8.0
     container_name: account-mysql
     environment:
@@ -35,7 +49,7 @@ services:
     ports:
       - "33061:3306"
     volumes:
-      - account-db-data:/var/lib/mysql
+      - account-database-data:/var/lib/mysql
     networks:
       - laravel-network
     healthcheck:
@@ -44,7 +58,7 @@ services:
       retries: 10
 
   # Aplicação Second
-  second-app:
+  second:
     build:
       context: ./second
       dockerfile: Dockerfile
@@ -57,18 +71,18 @@ services:
       - second-vendor:/var/www/html/vendor
     environment:
       - DB_CONNECTION=mysql
-      - DB_HOST=second-db
+      - DB_HOST=second-database
       - DB_PORT=3306
       - DB_DATABASE=second_db
       - DB_USERNAME=root
       - DB_PASSWORD=rootpassword
     depends_on:
-      - second-db
+      - second-database
     networks:
       - laravel-network
 
   # Banco de dados Second
-  second-db:
+  second-database:
     image: mysql:8.0
     container_name: second-mysql
     environment:
@@ -77,7 +91,7 @@ services:
     ports:
       - "33062:3306"
     volumes:
-      - second-db-data:/var/lib/mysql
+      - second-database-data:/var/lib/mysql
     networks:
       - laravel-network
     healthcheck:
@@ -86,7 +100,7 @@ services:
       retries: 10
 
   # Aplicação Third
-  third-app:
+  third:
     build:
       context: ./third
       dockerfile: Dockerfile
@@ -99,18 +113,18 @@ services:
       - third-vendor:/var/www/html/vendor
     environment:
       - DB_CONNECTION=mysql
-      - DB_HOST=third-db
+      - DB_HOST=third-database
       - DB_PORT=3306
       - DB_DATABASE=third_db
       - DB_USERNAME=root
       - DB_PASSWORD=rootpassword
     depends_on:
-      - third-db
+      - third-database  
     networks:
       - laravel-network
 
   # Banco de dados Third
-  third-db:
+  third-database:
     image: mysql:8.0
     container_name: third-mysql
     environment:
@@ -119,7 +133,7 @@ services:
     ports:
       - "33063:3306"
     volumes:
-      - third-db-data:/var/lib/mysql
+      - third-database-data:/var/lib/mysql
     networks:
       - laravel-network
     healthcheck:
@@ -134,15 +148,25 @@ services:
     ports:
       - "8080:80"
     environment:
-      - PMA_HOSTS=account-db,second-db,third-db
+      - PMA_HOSTS=account-database,second-database,third-database
       - PMA_PORTS=3306,3306,3306
       - PMA_USER=root
       - PMA_PASSWORD=rootpassword
       - UPLOAD_LIMIT=300M
     depends_on:
-      - account-db
-      - second-db
-      - third-db
+      - account-database
+      - second-database
+      - third-database
+    networks:
+      - laravel-network
+
+  # MailHog
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - laravel-network
 
@@ -151,9 +175,9 @@ networks:
     driver: bridge
 
 volumes:
-  account-db-data:
-  second-db-data:
-  third-db-data:
+  account-database-data:
+  second-database-data:
+  third-database-data:
   account-storage:
   second-storage:
   third-storage:
