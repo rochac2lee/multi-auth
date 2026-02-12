@@ -12,8 +12,15 @@ Route::get('/', function () {
 Route::get('/auth/check', [AuthController::class, 'checkAuth'])->name('auth.check');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login/verify/{token}', [AuthController::class, 'verifyLoginToken'])->name('login.verify');
+Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/api/generate-token', [AuthController::class, 'generateToken'])->middleware('web');
+
+// Google OAuth routes
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::options('/api/generate-token', function (Request $request) {
     $origin = $request->headers->get('Origin');
