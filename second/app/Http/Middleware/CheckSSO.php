@@ -7,6 +7,7 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,9 +23,34 @@ class CheckSSO
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Se já estiver autenticado localmente, continuar
+        // Se já estiver autenticado localmente, verificar se a sessão realmente existe
         if (Auth::check()) {
-            return $next($request);
+            $user = Auth::user();
+            $sessionId = $request->session()->getId();
+            $sessionExists = false;
+
+            // Verificar se a sessão realmente existe no banco de dados
+            if (config('session.driver') === 'database') {
+                $sessionsTable = config('session.table', 'sessions');
+                $sessionExists = DB::table($sessionsTable)
+                    ->where('id', $sessionId)
+                    ->where('user_id', $user->id)
+                    ->exists();
+            } else {
+                // Para outros drivers, considerar que a sessão existe se Auth::check() retorna true
+                $sessionExists = true;
+            }
+
+            // Se a sessão não existir no banco, fazer logout e redirecionar para login
+            if (!$sessionExists) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                // Continuar com o fluxo de login abaixo
+            } else {
+                // Sessão existe, continuar
+                return $next($request);
+            }
         }
 
         // Verificar se há token na query string (vindo do callback)
