@@ -23,43 +23,33 @@ class CheckAuth
             return $next($request);
         }
 
-        // Primeiro, verificar se a sessão atual tem user_id
+        // Se a sessão foi invalidada (logout), não reautenticar
+        // Verificar se a sessão atual existe no banco
         $currentSessionId = $request->session()->getId();
         $currentSession = Session::where('id', $currentSessionId)->first();
 
+        // Se a sessão não existe no banco, significa que foi deletada no logout
+        // Não tentar reautenticar
+        if (!$currentSession) {
+            return $next($request);
+        }
+
+        // Se a sessão existe mas não tem user_id, não reautenticar
+        if ($currentSession && !$currentSession->user_id) {
+            return $next($request);
+        }
+
+        // Se a sessão tem user_id, verificar se o usuário ainda existe
         if ($currentSession && $currentSession->user_id) {
             $user = User::find($currentSession->user_id);
             if ($user) {
                 // Reutilizar a sessão existente em vez de criar uma nova
                 Auth::setUser($user);
                 return $next($request);
-            }
-        }
-
-        // Se não, verificar se há uma sessão ativa no banco de dados com user_id
-        // Buscar nas últimas sessões ativas (últimas 2 horas) ordenadas por last_activity
-        $twoHoursAgo = now()->subHours(2)->timestamp;
-        $existingSession = Session::where('last_activity', '>', $twoHoursAgo)
-            ->whereNotNull('user_id')
-            ->orderBy('last_activity', 'desc')
-            ->first();
-
-        if ($existingSession && $existingSession->user_id) {
-            $user = User::find($existingSession->user_id);
-
-            if ($user) {
-                // Limpar TODAS as outras sessões do mesmo usuário
-                // Isso garante que apenas uma sessão seja mantida por usuário
-                Session::where('user_id', $user->id)
-                    ->delete();
-
-                // Associar a sessão atual ao user_id, criando uma única sessão ativa
-                $request->session()->save();
-                Session::where('id', $currentSessionId)
-                    ->update(['user_id' => $user->id]);
-
-                // Autenticar o usuário
-                Auth::setUser($user);
+            } else {
+                // Usuário não existe mais, limpar a sessão
+                $currentSession->delete();
+                return $next($request);
             }
         }
 
