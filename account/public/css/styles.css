@@ -1,0 +1,398 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+  background: #F9FAFB;
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  width: 100%;
+  color: #363646;
+}
+
+/* LOGIN */
+
+.login-page {
+  width: 100%;
+  max-width: 472px;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  margin-top: 80px;
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.login-header .logo-container img {
+  height: 36px;
+  width: auto;
+}
+
+.login-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #363646;
+  padding-bottom: 9px;
+  margin: 0;
+}
+
+.login-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #363646;
+}
+
+.login-header a {
+  color: #1C9CEA;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-card {
+  width: 472px;
+  background-color: #FFFFFF;
+  border-radius: 4px;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.07);
+  padding: 42px 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  form {
+    width: 100%;
+  }
+}
+
+.login-card .field {
+  width: 100%;
+  max-width: 392px;
+  margin-bottom: 0;
+}
+
+.login-card .field:first-of-type {
+  margin-bottom: 21px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #363646;
+}
+
+.input {
+  width: 100%;
+  max-width: 392px;
+  padding: 12px 12px;
+  border-radius: 4px;
+  border: 1px solid #CED4DA;
+  font-size: 14px;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+  color: #363646;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input::placeholder {
+  color: #6c7480;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1C9CEA;
+  box-shadow: 0 0 0 1px rgba(28, 156, 234, 0.2);
+}
+
+.input--error {
+  border-color: #FF3942;
+}
+
+.error-text {
+  color: #FF3942;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.status-box {
+  background: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 392px;
+}
+
+.btn-primary {
+  width: 100%;
+  max-width: 392px;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-top: 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+  cursor: pointer;
+  background: #25D060;
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #21BB56;
+}
+
+.remember-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px 0 0;
+  font-size: 14px;
+  color: #363646;
+  width: 100%;
+  max-width: 392px;
+}
+
+.remember-row input[type="checkbox"] {
+  margin: 0;
+}
+
+.login-footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: #8496AA;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0 16px;
+  font-size: 14px;
+  color: #8496AA;
+  width: 100%;
+  max-width: 392px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #EDEFF2;
+}
+
+.divider span {
+  padding: 0 12px;
+}
+
+.btn-google {
+  width: 100%;
+  max-width: 392px;
+  border-radius: 4px;
+  border: 1px solid #CED4DA;
+  background: #fff;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #363646;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-google:hover {
+  background: #F9FAFB;
+}
+
+.btn-google svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 520px) {
+  .login-header {
+    margin-top: 40px;
+    margin-bottom: 24px;
+  }
+  .login-card {
+    padding: 32px 24px 24px;
+  }
+}
+
+/* REGISTER */
+
+.register-page {
+  width: 100%;
+  max-width: 960px;
+  padding: 0 24px 48px;
+}
+
+.register-header {
+  width: 100%;
+  border-bottom: 1px solid #EDEFF2;
+  background: #FFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 16px;
+}
+
+.register-header img {
+  height: 36px;
+  width: auto;
+}
+
+.register-header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.register-header p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #363646;
+}
+
+.register-header a {
+  color: #1C9CEA;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-layout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 48px;
+  margin-top: 32px;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 391px;
+  background: #FFF;
+  border-radius: 4px;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.07);
+  padding: 32px 24px 24px;
+}
+
+.field {
+  margin-bottom: 24px;
+}
+
+.register-login-link {
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: center;
+  line-height: 21px;
+  color: #363646;
+}
+
+.register-login-link a {
+  color: #1C9CEA;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.solutions {
+  margin-top: 80px;
+  margin-bottom: 40px;
+}
+
+.solutions-title {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 40px;
+  color: #363646;
+}
+
+.solutions-grid {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.solution-card {
+  width: 288px;
+  height: 123px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.solution-card--selpics {
+  border: 1px solid #A4D7F7;
+  background: #E7F5FD;
+}
+
+.solution-card--youbox {
+  border: 1px solid #A1DFE8;
+  background: #E7F7F9;
+}
+
+.solution-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 9px;
+  color: #363646;
+}
+
+.solution-subtitle {
+  font-size: 14px;
+  color: #363646;
+  font-weight: 400;
+}
+
+@media (max-width: 768px) {
+  .register-header h1 {
+    font-size: 26px;
+    line-height: 36px;
+  }
+  .register-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  .solutions {
+    width: 100%;
+    padding: 0 24px;
+    margin-top: 48px;
+  }
+  .solutions-title {
+    font-size: 26px;
+    line-height: 36px;
+  }
+  .solutions-grid {
+    flex-direction: column;
+    align-items: center;
+  }
+  .solution-card {
+    width: 100%;
+    max-width: 391px;
+  }
+}
+

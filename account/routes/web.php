@@ -2,12 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use App\Http\Controllers\AuthController;
 
 Route::get('/', function () {
-    return view('welcome');
-})->middleware('check.auth');
+    return redirect()->route('login');
+});
 
 Route::get('/auth/check', [AuthController::class, 'checkAuth'])->name('auth.check');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -56,9 +57,9 @@ Route::get('/api/check-auth', function (Request $request) {
         'http://localhost:8003',
     ];
 
-    \Log::info('check-auth - Session ID: ' . $request->session()->getId());
-    \Log::info('check-auth - Auth::check(): ' . (Auth::check() ? 'true' : 'false'));
-    \Log::info('check-auth - Cookies: ' . json_encode($request->cookies->all()));
+    Log::info('check-auth - Session ID: ' . $request->session()->getId());
+    Log::info('check-auth - Auth::check(): ' . (Auth::check() ? 'true' : 'false'));
+    Log::info('check-auth - Cookies: ' . json_encode($request->cookies->all()));
 
     if (Auth::check()) {
         $response = response()->json(['authenticated' => true, 'user' => [
