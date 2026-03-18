@@ -3,6 +3,7 @@ import AccountModalBase from "./AccountModalBase.vue";
 import ArrowDownIcon from "@/assets/icons/arrow-down.svg";
 import axios from "axios";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import ChangeEmailModal from "./ChangeEmailModal.vue";
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -129,6 +130,21 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     document.removeEventListener("click", onDocClick);
 });
+
+const isChangeEmailOpen = ref(false);
+const changeEmailForm = ref({
+    newMail: "",
+});
+
+const changeEmail = () => {
+    changeEmailForm.value = { newMail: "" };
+    isChangeEmailOpen.value = true;
+};
+
+const changePassword = () => {
+    // A lógica de troca de senha já existe na tela principal.
+    // Este link só mantém compatibilidade com a UI.
+};
 </script>
 
 <template>
@@ -261,6 +277,13 @@ onBeforeUnmount(() => {
             </div>
         </div>
     </AccountModalBase>
+
+    <ChangeEmailModal
+        :open="isChangeEmailOpen"
+        :model="changeEmailForm"
+        @close="isChangeEmailOpen = false"
+        @save="isChangeEmailOpen = false"
+    />
 </template>
 
 <style scoped>
