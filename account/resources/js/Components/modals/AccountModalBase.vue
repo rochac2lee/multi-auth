@@ -1,11 +1,14 @@
 <script setup>
 import CloseIcon from "@/assets/icons/close.svg";
+import InfoIconUrl from "@/assets/icons/info.svg?url";
 
 defineProps({
     open: { type: Boolean, default: false },
     title: { type: String, required: true },
     customClass: { type: String, default: "" },
     textButton: { type: String, default: "Salvar" },
+    hasInfoText: { type: Boolean, default: false },
+    infoText: { type: String, default: "" },
 });
 
 defineEmits(["close", "save"]);
@@ -32,6 +35,12 @@ defineEmits(["close", "save"]);
                     />
                 </div>
 
+                <div class="bg-[#FFFAE7] p-6 flex gap-2" v-if="hasInfoText">
+                    <img :src="InfoIconUrl" alt="Info" class="w-5 h-5" />
+                    <p class="text-[#363646] text-[14px]">
+                        {{ infoText }}
+                    </p>
+                </div>
                 <div class="px-6 py-5">
                     <slot />
                 </div>
