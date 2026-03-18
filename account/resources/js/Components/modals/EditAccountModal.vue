@@ -154,9 +154,16 @@ onBeforeUnmount(() => {
 
             <!-- Registration email (disabled) -->
             <div>
-                <label class="block text-sm font-semibold text-[#363646] mb-1"
-                    >* E-mail de cadastro</label
-                >
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-semibold text-[#363646]"
+                        >* E-mail de cadastro</label
+                    >
+                    <a
+                        class="text-[#1C9CEA] font-semibold text-sm"
+                        @click="changeEmail"
+                        >Alterar e-mail</a
+                    >
+                </div>
                 <input
                     v-model="model.email"
                     type="email"
@@ -167,9 +174,16 @@ onBeforeUnmount(() => {
 
             <!-- Password -->
             <div>
-                <label class="block text-sm font-semibold text-[#363646] mb-1"
-                    >* Senha</label
-                >
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-semibold text-[#363646]"
+                        >* Senha</label
+                    >
+                    <a
+                        class="text-[#1C9CEA] font-semibold text-sm"
+                        @click="changePassword"
+                        >Alterar senha</a
+                    >
+                </div>
                 <input
                     v-model="model.senha"
                     type="password"
