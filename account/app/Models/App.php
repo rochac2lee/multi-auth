@@ -12,7 +12,7 @@ class App extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['name', 'redirect_uri', 'config'];
+    protected $fillable = ['name', 'redirect_uri', 'config', 'logo'];
 
     public function users()
     {
