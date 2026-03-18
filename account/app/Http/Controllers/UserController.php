@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use App\Http\Resources\UserResource;
 use App\Models\Niche;
+use App\Models\EmailChangeToken;
+use App\Mail\EmailChangeCodeMail;
 
 class UserController extends Controller
 {
@@ -26,6 +29,7 @@ class UserController extends Controller
         $apps = $user->apps()->get()->map(fn($app) => [
             'id' => $app->id,
             'name' => $app->name,
+            'logo' => $app->logo,
             'redirect_uri' => $app->redirect_uri
                 ? rtrim(preg_replace('/[?#].*$/', '', $app->redirect_uri), '/') . '/'
                 : null,
@@ -179,6 +183,97 @@ class UserController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json(['updated' => true]);
+        }
+
+        return back();
+    }
+
+    public function requestEmailChangeCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'newMail' => ['required', 'email', 'max:255'],
+        ]);
+
+        $newEmail = (string) $data['newMail'];
+
+        if (strcasecmp($newEmail, (string) $user->email) === 0) {
+            return response()->json(['message' => 'E-mail is already the same.'], 422);
+        }
+
+        $code = (string) random_int(100000, 999999);
+
+        EmailChangeToken::query()
+            ->where('user_id', $user->id)
+            ->whereNull('used_at')
+            ->delete();
+
+        $token = EmailChangeToken::createForUser($user->id, $newEmail, $code);
+
+        try {
+            Mail::mailer('smtp')->to($newEmail)->send(
+                new EmailChangeCodeMail($newEmail, $code)
+            );
+        } catch (Throwable $e) {
+            Log::error('Email change code send failed', [
+                'user_id' => $user->id,
+                'new_email' => $newEmail,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(
+                ['message' => 'Falha ao enviar o código. Tente novamente.'],
+                500
+            );
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['sent' => true]);
+        }
+
+        return back();
+    }
+
+    public function verifyEmailChangeCode(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $data = $request->validate([
+            'newMail' => ['required', 'email', 'max:255'],
+            'code' => ['required', 'digits:6'],
+        ]);
+
+        $newEmail = (string) $data['newMail'];
+        $code = (string) $data['code'];
+
+        $token = EmailChangeToken::query()
+            ->where('user_id', $user->id)
+            ->where('new_email', $newEmail)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->where('code', $code)
+            ->first();
+
+        if (!$token || !$token->isValid()) {
+            return response()->json(['message' => 'Invalid or expired code.'], 422);
+        }
+
+        $user->email = $newEmail;
+        $user->save();
+
+        $token->update(['used_at' => now()]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['verified' => true]);
         }
 
         return back();
