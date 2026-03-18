@@ -12,7 +12,7 @@
                     >* Nome do estúdio</label
                 >
                 <input
-                    v-model="model.nome_estudio"
+                    v-model="model.photography_studio"
                     type="text"
                     maxlength="100"
                     class="w-full border border-[#BBC5D0] rounded-[4px] px-3 py-2 text-[#363646]"
@@ -25,7 +25,7 @@
                     >* Como deseja ser chamado (Nome ou Apelido)</label
                 >
                 <input
-                    v-model="model.apelido"
+                    v-model="model.surname"
                     type="text"
                     maxlength="100"
                     class="w-full border border-[#BBC5D0] rounded-[4px] px-3 py-2 text-[#363646]"
@@ -46,13 +46,13 @@
                 </div>
                 <input
                     :value="
-                        Array.isArray(model.nichos_principais) &&
-                        model.nichos_principais.length > 0
-                            ? model.nichos_principais.join(', ')
+                        Array.isArray(model.main_niches) &&
+                        model.main_niches.length > 0
+                            ? model.main_niches.join(', ')
                             : '—'
                     "
                     disabled
-                    class="w-full border border-[#BBC5D0] rounded-[4px] px-3 py-2 text-[#363646] bg-[#F9FAFB] cursor-not-allowed"
+                    class="w-full rounded-[4px] px-3 py-2 text-[#A3B0BF] bg-[#EDEFF2] cursor-not-allowed"
                 />
             </div>
 
@@ -74,9 +74,7 @@
     <MainNichesModal
         :open="isMainNichesModalOpen"
         :selected-niches="
-            Array.isArray(model?.nichos_principais)
-                ? model.nichos_principais
-                : []
+            Array.isArray(model?.main_niches) ? model.main_niches : []
         "
         @close="isMainNichesModalOpen = false"
         @save="onMainNichesSave"
@@ -110,15 +108,15 @@ const onMainNichesSave = (selected) => {
     }
 
     // Evita problemas de reatividade em props: muta o array em-place.
-    if (Array.isArray(props.model.nichos_principais)) {
-        props.model.nichos_principais.splice(
+    if (Array.isArray(props.model.main_niches)) {
+        props.model.main_niches.splice(
             0,
-            props.model.nichos_principais.length,
-            ...selected
+            props.model.main_niches.length,
+            ...selected,
         );
     } else {
         // fallback (deveria cair pouco, já que o Home inicializa como array)
-        props.model.nichos_principais = selected;
+        props.model.main_niches = selected;
     }
     isMainNichesModalOpen.value = false;
 };
