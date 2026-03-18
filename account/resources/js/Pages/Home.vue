@@ -75,7 +75,7 @@ const saveEditModal = async () => {
                     Accept: "application/json",
                 },
                 withCredentials: true,
-            }
+            },
         );
 
         await router.reload({ only: ["user"] });
@@ -84,7 +84,46 @@ const saveEditModal = async () => {
     } catch (error) {
         console.error(
             "Edit profile save error:",
-            error?.response?.data ?? error
+            error?.response?.data ?? error,
+        );
+    }
+};
+
+const saveAdditionalModal = async () => {
+    try {
+        await axios.post(
+            route("account.profile.update"),
+            {
+                nome_completo: props.user?.name ?? editForm.value.nome_completo,
+                country_id:
+                    props.user?.country_id ??
+                    props.user?.country?.id ??
+                    editForm.value.country_id ??
+                    null,
+                photography_studio: additionalForm.value.nome_estudio ?? null,
+                surname: additionalForm.value.apelido ?? null,
+                instagram: additionalForm.value.instagram ?? null,
+                nichos_principais: Array.isArray(
+                    additionalForm.value.nichos_principais,
+                )
+                    ? additionalForm.value.nichos_principais
+                    : [],
+            },
+            {
+                headers: {
+                    "X-CSRF-TOKEN": csrf,
+                    Accept: "application/json",
+                },
+                withCredentials: true,
+            },
+        );
+
+        await router.reload({ only: ["user"] });
+        closeAllModals();
+    } catch (error) {
+        console.error(
+            "Additional profile save error:",
+            error?.response?.data ?? error,
         );
     }
 };
@@ -279,7 +318,7 @@ onBeforeUnmount(() => {
                         <p
                             class="relative z-10 text-white text-[30px] font-bold text-center"
                         >
-                            {{ user.name }}
+                            {{ user.surname ? user.surname : user.name }}
                         </p>
                     </div>
 
@@ -410,45 +449,57 @@ onBeforeUnmount(() => {
                                         class="w-4 h-4 text-[#8496AA] group-hover:text-[#363646]"
                                     />
                                 </button>
-                                <div class="mb-4">
-                                    <p
-                                        class="text-sm font-semibold text-[#8496AA]"
-                                    >
-                                        Nome completo:
-                                    </p>
-                                    <p class="text-base text-[#363646]">
-                                        {{ user.name || "—" }}
-                                    </p>
-                                </div>
-                                <div class="mb-4">
-                                    <p
-                                        class="text-sm font-semibold text-[#8496AA]"
-                                    >
-                                        E-mail de cadastro:
-                                    </p>
-                                    <p class="text-base text-[#363646]">
-                                        {{ user.email || "—" }}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p
-                                        class="text-sm font-semibold text-[#8496AA]"
-                                    >
-                                        Senha:
-                                    </p>
-                                    <p class="text-base text-[#363646]">
-                                        ***********
-                                    </p>
-                                </div>
-                                <div>
-                                    <p
-                                        class="text-sm font-semibold text-[#8496AA]"
-                                    >
-                                        País:
-                                    </p>
-                                    <p class="text-base text-[#363646]">
-                                        {{ user.country?.name || "—" }}
-                                    </p>
+                                <div class="flex flex-col gap-6">
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Nome completo:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.name || "—" }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            E-mail de cadastro:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.email || "—" }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Senha:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            ***********
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            País:
+                                        </p>
+                                        <p
+                                            class="text-base text-[#363646] flex items-center gap-1"
+                                        >
+                                            <img
+                                                v-if="user.country?.flag_url"
+                                                :src="user.country.flag_url"
+                                                alt=""
+                                                class="w-7 h-5"
+                                            />
+                                            <span>
+                                                {{ user.country?.name || "—" }}
+                                            </span>
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -470,15 +521,48 @@ onBeforeUnmount(() => {
                                         class="w-4 h-4 text-[#8496AA] group-hover:text-[#363646]"
                                     />
                                 </button>
-                                <div>
-                                    <p
-                                        class="text-sm font-semibold text-[#8496AA]"
-                                    >
-                                        ID da conta:
-                                    </p>
-                                    <p class="text-base text-[#363646]">
-                                        {{ user.id }}
-                                    </p>
+                                <div class="flex flex-col gap-6">
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Nome do estúdio:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.photography_studio || "—" }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Como deseja ser chamado (Nome ou
+                                            Apelido):
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.surname || "—" }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Nichos Principais:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.niches.join(", ") || "—" }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p
+                                            class="text-sm font-semibold text-[#8496AA]"
+                                        >
+                                            Instagram:
+                                        </p>
+                                        <p class="text-base text-[#363646]">
+                                            {{ user.instagram || "—" }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -575,7 +659,7 @@ onBeforeUnmount(() => {
             :open="isAdditionalModalOpen"
             :model="additionalForm"
             @close="closeAllModals"
-            @save="closeAllModals"
+            @save="saveAdditionalModal"
         />
     </AccountLayout>
 </template>
