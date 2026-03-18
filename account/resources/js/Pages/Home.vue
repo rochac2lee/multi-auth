@@ -6,10 +6,26 @@ import EditIcon from "@/assets/icons/edit.svg";
 import UploadIconUrl from "@/assets/icons/uploading.svg?url";
 import RefreshIconUrl from "@/assets/icons/refresh.svg?url";
 import TrashIconUrl from "@/assets/icons/trash-dark.svg?url";
+import MenuDotsHorizontalIconUrl from "@/assets/icons/menu-dots-horizontal.svg?url";
 import axios from "axios";
 import { computed, onBeforeUnmount, ref } from "vue";
 import EditAccountModal from "@/Components/modals/EditAccountModal.vue";
 import AdditionalAccountInfoModal from "@/Components/modals/AdditionalAccountInfoModal.vue";
+
+const appLogos = import.meta.glob("../assets/images/*", {
+    eager: true,
+    as: "url",
+});
+
+const resolveAppLogoUrl = (logo) => {
+    const file = String(logo ?? "").trim();
+    if (!file) {
+        return null;
+    }
+
+    const matchKey = Object.keys(appLogos).find((k) => k.endsWith(`/${file}`));
+    return matchKey ? appLogos[matchKey] : null;
+};
 
 const props = defineProps({
     user: Object,
@@ -100,10 +116,13 @@ const saveAdditionalModal = async () => {
                     props.user?.country?.id ??
                     editForm.value.country_id ??
                     null,
-                photography_studio: additionalForm.value.photography_studio ?? null,
+                photography_studio:
+                    additionalForm.value.photography_studio ?? null,
                 surname: additionalForm.value.surname ?? null,
                 instagram: additionalForm.value.instagram ?? null,
-                nichos_principais: Array.isArray(additionalForm.value.main_niches)
+                nichos_principais: Array.isArray(
+                    additionalForm.value.main_niches,
+                )
                     ? additionalForm.value.main_niches
                     : [],
             },
@@ -575,24 +594,52 @@ onBeforeUnmount(() => {
                         <div
                             v-for="app in apps"
                             :key="app.id"
-                            class="bg-white border border-[#E0E5EA] rounded-[4px] h-24 flex items-center px-6 gap-6 mb-2"
+                            class="bg-white border border-[#E0E5EA] rounded-[4px] h-24 flex items-center px-6 mb-2 justify-between"
                         >
-                            <div class="w-[132px] flex-shrink-0">
+                            <div class="flex items-center gap-36">
+                                <img
+                                    v-if="resolveAppLogoUrl(app.logo)"
+                                    :src="resolveAppLogoUrl(app.logo)"
+                                    alt=""
+                                    class="h-[32px] object-contain"
+                                />
+
                                 <span
-                                    class="text-sm font-bold text-[#363646]"
-                                    >{{ app.name }}</span
+                                    class="inline-flex items-center h-6 px-3 rounded-[20px] bg-[#25D060] text-white text-xs font-semibold flex-shrink-0"
                                 >
+                                    Ativa
+                                </span>
+
+                                <div class="flex flex-col">
+                                    <p
+                                        class="text-sm font-semibold text-[#363646]"
+                                    >
+                                        Plano atual:
+                                    </p>
+                                    <p class="text-sm font-bold text-[#363646]">
+                                        Essencial | 20 GB
+                                    </p>
+                                </div>
+                                <div class="flex gap-1">
+                                    <CloudIcon class="w-4 h-4" />
+                                    <div class="flex flex-col">
+                                        <p
+                                            class="text-sm font-semibold text-[#363646]"
+                                        >
+                                            Espaço disponível:
+                                        </p>
+                                        <p
+                                            class="text-sm font-bold text-[#363646]"
+                                        >
+                                            10 MB de 20 GB
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <span
-                                class="inline-flex items-center h-6 px-3 rounded-[20px] bg-[#25D060] text-white text-xs font-semibold flex-shrink-0"
+                            <div
+                                class="relative flex items-center gap-2 flex-shrink-0"
                             >
-                                Ativa
-                            </span>
-
-                            <div class="flex-1"></div>
-
-                            <div class="flex items-center gap-2 flex-shrink-0">
                                 <a
                                     v-if="app.redirect_uri"
                                     :href="app.redirect_uri"
@@ -600,6 +647,22 @@ onBeforeUnmount(() => {
                                 >
                                     Acessar produto
                                 </a>
+                                <div
+                                    class="absolute bottom-full right-0 mb-2 bg-[#FFFFFF] rounded-[4px] py-2 shadow-[0px_4px_10px_0px_rgba(0,0,0,0.10)] z-10"
+                                >
+                                    <div class="px-4 py-2 hover:bg-[#EDEFF2]">
+                                        <p>Acessar produto</p>
+                                    </div>
+                                    <div class="px-4 py-2 hover:bg-[#EDEFF2]">
+                                        <p>Cancelar assinatura</p>
+                                    </div>
+                                </div>
+                                <img
+                                    :src="MenuDotsHorizontalIconUrl"
+                                    alt=""
+                                    class="w-6 h-6 cursor-pointer"
+                                    @click="openMenu"
+                                />
                             </div>
                         </div>
                     </div>
