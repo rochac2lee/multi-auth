@@ -4,6 +4,7 @@ use App\Models\App;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CountriesController;
+use App\Http\Controllers\NichesController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,8 @@ Route::middleware('web')->group(function () {
 });
 
 Route::get('/countries', [CountriesController::class, 'index'])->name('countries');
+
+Route::get('/niches', [NichesController::class, 'index'])->name('niches');
 
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
