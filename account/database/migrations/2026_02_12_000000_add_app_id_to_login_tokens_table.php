@@ -11,12 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('apps', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('name');
-            $table->string('redirect_uri')->nullable();
-            $table->jsonb('config')->nullable();
-            $table->timestamps();
+        Schema::table('login_tokens', function (Blueprint $table) {
+            $table->foreignUuid('app_id')->nullable()->after('email')->constrained('apps')->nullOnDelete();
         });
     }
 
@@ -25,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('apps');
+        Schema::table('login_tokens', function (Blueprint $table) {
+            $table->dropForeign(['app_id']);
+        });
     }
 };

@@ -11,11 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('apps', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+        Schema::create('countries', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('order')->nullable();
             $table->string('name');
-            $table->string('redirect_uri')->nullable();
-            $table->jsonb('config')->nullable();
+            $table->string('alpha2', 2)->unique();
+            $table->string('alpha3', 3)->unique();
+            $table->string('numeric_code', 3)->unique();
+            $table->string('flag')->nullable();
             $table->timestamps();
         });
     }
@@ -25,6 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('apps');
+        Schema::dropIfExists('countries');
     }
 };
+

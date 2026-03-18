@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('apps', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('name');
-            $table->string('redirect_uri')->nullable();
-            $table->jsonb('config')->nullable();
+        Schema::create('niche_user', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('niche_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
+
+            $table->unique(['user_id', 'niche_id']);
         });
     }
 
@@ -25,6 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('apps');
+        Schema::dropIfExists('niche_user');
     }
 };
+
