@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
                     >* Nome completo</label
                 >
                 <input
-                    v-model="model.nome_completo"
+                    v-model="model.name"
                     type="text"
                     maxlength="100"
                     class="w-full border border-[#BBC5D0] rounded-[4px] px-3 py-2 text-[#363646]"
@@ -159,7 +159,7 @@ onBeforeUnmount(() => {
                         >* E-mail de cadastro</label
                     >
                     <a
-                        class="text-[#1C9CEA] font-semibold text-sm"
+                        class="text-[#1C9CEA] font-semibold text-sm cursor-pointer"
                         @click="changeEmail"
                         >Alterar e-mail</a
                     >
@@ -179,13 +179,13 @@ onBeforeUnmount(() => {
                         >* Senha</label
                     >
                     <a
-                        class="text-[#1C9CEA] font-semibold text-sm"
+                        class="text-[#1C9CEA] font-semibold text-sm cursor-pointer"
                         @click="changePassword"
                         >Alterar senha</a
                     >
                 </div>
                 <input
-                    v-model="model.senha"
+                    v-model="model.password"
                     type="password"
                     maxlength="100"
                     class="w-full rounded-[4px] px-3 py-2 text-[#A3B0BF] bg-[#EDEFF2]"
