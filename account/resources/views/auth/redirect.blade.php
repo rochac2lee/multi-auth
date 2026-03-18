@@ -43,18 +43,15 @@
     </div>
 
     <script>
-        // Redirecionar para as outras aplicações
-        const secondAppUrl = '{{ $secondAppUrl }}';
-        const thirdAppUrl = '{{ $thirdAppUrl }}';
+        const appUrls = @json($appUrls ?? []);
 
-        // Abrir em nova aba/janela ou usar iframe
-        window.open(secondAppUrl, '_blank');
-        window.open(thirdAppUrl, '_blank');
+        appUrls.forEach((url) => {
+            window.open(url, '_blank');
+        });
 
-        // Redirecionar a janela atual após um pequeno delay
         setTimeout(() => {
             window.location.href = '/';
-        }, 1000);
+        }, appUrls.length ? 1000 : 0);
     </script>
 </body>
 </html>

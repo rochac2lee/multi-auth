@@ -8,10 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://youbox.youfocus.com.br/css/matrix-nucleus-styles.css" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    @vite(['resources/css/app.css'])
 </head>
-<body>
-<div class="login-page">
+<body class="login-page">
     <header class="login-header">
         <div class="logo-container">
             <img src="{{ asset('images/logo-youfocus.png') }}" alt="YouFocus">
@@ -20,57 +21,68 @@
             <h1>Acessar conta</h1>
             <p>
                 Não possui uma conta?
-                <a href="{{ route('register') }}">Cadastrar</a>
+                <a href="{{ route('register', request('app_id') ? ['app_id' => request('app_id')] : []) }}">Cadastrar</a>
             </p>
         </div>
     </header>
 
-    <main class="login-card">
-        @if(session('status'))
-            <div class="status-box">
-                {{ session('status') }}
-            </div>
-        @endif
+    @if($errors->has('email'))
+        <div class="failed-auth mx-warning mx-warning--error">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M6.25 14.8L10 11.05L13.75 14.8L14.8 13.75L11.05 10L14.8 6.25L13.75 5.2L10 8.95L6.25 5.2L5.2 6.25L8.95 10L5.2 13.75L6.25 14.8ZM10 20C8.63333 20 7.34167 19.7375 6.125 19.2125C4.90833 18.6875 3.84583 17.9708 2.9375 17.0625C2.02917 16.1542 1.3125 15.0917 0.7875 13.875C0.2625 12.6583 0 11.3667 0 10C0 8.61667 0.2625 7.31667 0.7875 6.1C1.3125 4.88333 2.02917 3.825 2.9375 2.925C3.84583 2.025 4.90833 1.3125 6.125 0.7875C7.34167 0.2625 8.63333 0 10 0C11.3833 0 12.6833 0.2625 13.9 0.7875C15.1167 1.3125 16.175 2.025 17.075 2.925C17.975 3.825 18.6875 4.88333 19.2125 6.1C19.7375 7.31667 20 8.61667 20 10C20 11.3667 19.7375 12.6583 19.2125 13.875C18.6875 15.0917 17.975 16.1542 17.075 17.0625C16.175 17.9708 15.1167 18.6875 13.9 19.2125C12.6833 19.7375 11.3833 20 10 20Z" fill="#FF3942"/>
+            </svg>
+            <div class="mx-warning__text">{{ $errors->first('email') }}</div>
+        </div>
+    @endif
 
-        <form method="POST" action="{{ route('login') }}">
-            @csrf
-            @if(request('redirect_uri') || old('redirect_uri'))
-                <input type="hidden" name="redirect_uri" value="{{ old('redirect_uri', request('redirect_uri')) }}">
-            @endif
+    @if(session('status'))
+        <div class="status-box mx-warning mx-warning--success">
+            <div class="mx-warning__text">{{ session('status') }}</div>
+        </div>
+    @endif
 
-            <div class="field">
-                <label for="email" class="field-label">* E-mail de cadastro</label>
-                <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    value="{{ old('email') }}"
-                    required
-                    autofocus
-                    placeholder="E-mail"
-                    class="input @error('email') input--error @enderror"
-                >
-                @error('email')
-                    <div class="error-text">{{ $message }}</div>
-                @enderror
-            </div>
+    <main class="login-main">
+        <div class="form-container">
+            <form method="POST" action="{{ route('login') }}">
+                @csrf
+                @if(request('app_id') || old('app_id'))
+                    <input type="hidden" name="app_id" value="{{ old('app_id', request('app_id')) }}">
+                @endif
 
-            <button type="submit" class="btn-primary">
-                Continuar acesso
-            </button>
+                <div class="form-field">
+                    <label for="email" class="mx-label">* E-mail de cadastro</label>
+                    <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value="{{ old('email') }}"
+                        required
+                        placeholder="E-mail"
+                        class="mx-input mx-input--large @error('email') mx-input--error @enderror"
+                    >
+                    @error('email')
+                        <span class="mx-input-text">
+                            <svg class="mx-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m5 11.84 3-3 3 3 .84-.84-3-3 3-3-.84-.84-3 3-3-3-.84.84 3 3-3 3zM8 16a7.7 7.7 0 0 1-3.1-.63A8.06 8.06 0 0 1 .63 11.1a8 8 0 0 1 0-6.22 8 8 0 0 1 1.72-2.54A8.2 8.2 0 0 1 4.9.63 7.991 7.991 0 0 1 15.37 11.1a8.2 8.2 0 0 1-1.71 2.55 8 8 0 0 1-2.54 1.72A7.8 7.8 0 0 1 8 16" fill="#FF3942"/></svg>
+                            {{ $message }}
+                        </span>
+                    @enderror
+                </div>
 
-            <label class="remember-row">
-                <input type="checkbox" name="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
-                <span>Continuar conectado</span>
-            </label>
-        </form>
+                <button type="submit" class="send-button mx-button mx-button--green mx-button--large">
+                    Continuar acesso
+                </button>
 
+                <div class="remember-container">
+                    <input class="mx-checkbox" id="remember" type="checkbox" name="remember" value="1" {{ old('remember') ? 'checked' : 'checked' }}>
+                    <label for="remember" class="text-[#363646] text-sm">Continuar conectado</label>
+                </div>
+            </form>
         <div class="divider">
             <span>ou</span>
         </div>
 
         <a
-            href="{{ route('auth.google', ['redirect_uri' => old('redirect_uri', request('redirect_uri'))]) }}"
+            href="{{ route('auth.google', request('app_id') ? ['app_id' => request('app_id')] : []) }}"
             class="btn-google"
         >
             <svg viewBox="0 0 24 24">
@@ -81,12 +93,9 @@
             </svg>
             Entrar com Google
         </a>
-    </main>
+        </div>
 
-    <div class="login-footer">
-        Ao continuar, você concorda com os nossos termos de uso e políticas de privacidade.
-    </div>
-</div>
+    </main>
 </body>
 </html>
 

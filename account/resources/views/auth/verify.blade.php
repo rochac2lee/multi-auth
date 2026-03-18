@@ -6,22 +6,23 @@
 <body>
     <p>Verificando autenticação...</p>
     <script>
-        const redirectUri = '{{ $redirectUri }}';
+        const appId = '{{ $appId ?? "" }}';
+        const redirectUri = '{{ $redirectUri ?? "" }}';
         const appUrl = '{{ config('app.url') }}';
 
-        // Verificar se está autenticado no account
-        // Como estamos no mesmo domínio (account), os cookies de sessão devem ser enviados automaticamente
+        function loginUrl() {
+            if (appId) return appUrl + '/login?app_id=' + encodeURIComponent(appId);
+            return appUrl + '/login';
+        }
+
         fetch('/api/check-auth', {
             method: 'GET',
             credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
-            }
+            headers: { 'Accept': 'application/json' }
         })
         .then(response => response.json())
         .then(data => {
             if (data.authenticated) {
-                // Se estiver autenticado, obter token
                 return fetch('/api/generate-token', {
                     method: 'POST',
                     credentials: 'include',
@@ -31,26 +32,21 @@
                         'X-Requested-With': 'XMLHttpRequest',
                     }
                 });
-            } else {
-                // Se não estiver autenticado, redirecionar para login
-                window.location.href = appUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
-                return Promise.reject('Não autenticado');
             }
+            window.location.href = loginUrl();
+            return Promise.reject('Não autenticado');
         })
         .then(response => response.json())
         .then(tokenData => {
-            if (tokenData.token) {
-                // Redirecionar para o client app com o token
-                const cleanUri = redirectUri.replace(/[?#].*$/, '');
-                const separator = cleanUri.includes('?') ? '&' : '?';
-                window.location.href = cleanUri + separator + 'token=' + encodeURIComponent(tokenData.token);
+            if (tokenData.token && redirectUri) {
+                const separator = redirectUri.includes('?') ? '&' : '?';
+                window.location.href = redirectUri + separator + 'token=' + encodeURIComponent(tokenData.token);
             } else {
-                window.location.href = appUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
+                window.location.href = loginUrl();
             }
         })
         .catch(() => {
-            // Em caso de erro, redirecionar para login
-            window.location.href = appUrl + '/login?redirect_uri=' + encodeURIComponent(redirectUri);
+            window.location.href = loginUrl();
         });
     </script>
 </body>
