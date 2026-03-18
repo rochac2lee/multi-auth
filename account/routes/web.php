@@ -1,14 +1,21 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
+use App\Models\App;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\CountriesController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::get('/', [UserController::class, 'home'])->name('home');
+
+// Rotas nomeadas exigidas pela view "minha-conta" (copiada do youfocus).
+// Aqui elas só evitam quebra do Blade no account.
+Route::get('/selpics/pricing', fn () => redirect('/'))->name('selpics.pricing');
+Route::get('/selpics', fn () => redirect('/'))->name('selpics');
+Route::get('/workspace/attach-youbox', fn () => redirect('/'))->name('workspace.attach-youbox');
+Route::get('/account/terminate', fn () => redirect('/'))->name('account.terminate.index');
 
 Route::get('/auth/check', [AuthController::class, 'checkAuth'])->name('auth.check');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -19,20 +26,21 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/api/generate-token', [AuthController::class, 'generateToken'])->middleware('web');
 
-// Google OAuth routes
+Route::middleware('web')->group(function () {
+    Route::post('/account/avatar', [UserController::class, 'uploadAvatar'])->name('account.avatar.upload');
+    Route::delete('/account/avatar', [UserController::class, 'deleteAvatar'])->name('account.avatar.delete');
+    Route::post('/account/profile', [UserController::class, 'updateProfile'])->name('account.profile.update');
+});
+
+Route::get('/countries', [CountriesController::class, 'index'])->name('countries');
+
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::options('/api/generate-token', function (Request $request) {
     $origin = $request->headers->get('Origin');
     $response = response('', 200);
-
-    $allowedOrigins = [
-        'http://second.test',
-        'http://third.test',
-        'http://localhost:8002',
-        'http://localhost:8003',
-    ];
+    $allowedOrigins = App::getAllowedOrigins();
 
     $response->header('Access-Control-Allow-Credentials', 'true');
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -49,17 +57,7 @@ Route::options('/api/generate-token', function (Request $request) {
 
 Route::get('/api/check-auth', function (Request $request) {
     $origin = $request->headers->get('Origin');
-
-    $allowedOrigins = [
-        'http://second.test',
-        'http://third.test',
-        'http://localhost:8002',
-        'http://localhost:8003',
-    ];
-
-    Log::info('check-auth - Session ID: ' . $request->session()->getId());
-    Log::info('check-auth - Auth::check(): ' . (Auth::check() ? 'true' : 'false'));
-    Log::info('check-auth - Cookies: ' . json_encode($request->cookies->all()));
+    $allowedOrigins = App::getAllowedOrigins();
 
     if (Auth::check()) {
         $response = response()->json(['authenticated' => true, 'user' => [
@@ -87,13 +85,7 @@ Route::get('/api/check-auth', function (Request $request) {
 Route::options('/api/check-auth', function (Request $request) {
     $origin = $request->headers->get('Origin');
     $response = response('', 200);
-
-    $allowedOrigins = [
-        'http://second.test',
-        'http://third.test',
-        'http://localhost:8002',
-        'http://localhost:8003',
-    ];
+    $allowedOrigins = App::getAllowedOrigins();
 
     $response->header('Access-Control-Allow-Credentials', 'true');
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');

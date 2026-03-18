@@ -7,7 +7,9 @@ use App\Http\Controllers\AuthController;
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/user', [AuthController::class, 'getUser']);
+    Route::get('/user/apps', [AuthController::class, 'getUserApps']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/apps/link', [AuthController::class, 'linkCurrentUserToApp']);
 });
 
 // Rota para verificar autenticação via sessão web
