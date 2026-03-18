@@ -35,7 +35,26 @@ services:
       - MAIL_FROM_NAME="Account App"
     depends_on:
       - account-database
+      - account-frontend
       - mailhog
+    networks:
+      - laravel-network
+      - youfocus-network
+
+  # Frontend Account (Vite dev server)
+  account-frontend:
+    image: node:alpine
+    container_name: account-frontend
+    volumes:
+      - ./account:/var/www/html
+    ports:
+      - "5179:5179"
+    working_dir: /var/www/html
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      [
+        "npm install && chmod -R 755 ./node_modules && npm run dev -- --port 5179 --host 0.0.0.0",
+      ]
     networks:
       - laravel-network
 
@@ -57,90 +76,6 @@ services:
       timeout: 20s
       retries: 10
 
-  # Aplicação Second
-  second:
-    build:
-      context: ./second
-      dockerfile: Dockerfile
-    container_name: second-laravel
-    ports:
-      - "8002:8000"
-    volumes:
-      - ./second:/var/www/html
-      - second-storage:/var/www/html/storage
-      - second-vendor:/var/www/html/vendor
-    environment:
-      - DB_CONNECTION=mysql
-      - DB_HOST=second-database
-      - DB_PORT=3306
-      - DB_DATABASE=second_db
-      - DB_USERNAME=root
-      - DB_PASSWORD=rootpassword
-    depends_on:
-      - second-database
-    networks:
-      - laravel-network
-
-  # Banco de dados Second
-  second-database:
-    image: mysql:8.0
-    container_name: second-mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=second_db
-    ports:
-      - "33062:3306"
-    volumes:
-      - second-database-data:/var/lib/mysql
-    networks:
-      - laravel-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-
-  # Aplicação Third
-  third:
-    build:
-      context: ./third
-      dockerfile: Dockerfile
-    container_name: third-laravel
-    ports:
-      - "8003:8000"
-    volumes:
-      - ./third:/var/www/html
-      - third-storage:/var/www/html/storage
-      - third-vendor:/var/www/html/vendor
-    environment:
-      - DB_CONNECTION=mysql
-      - DB_HOST=third-database
-      - DB_PORT=3306
-      - DB_DATABASE=third_db
-      - DB_USERNAME=root
-      - DB_PASSWORD=rootpassword
-    depends_on:
-      - third-database  
-    networks:
-      - laravel-network
-
-  # Banco de dados Third
-  third-database:
-    image: mysql:8.0
-    container_name: third-mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=third_db
-    ports:
-      - "33063:3306"
-    volumes:
-      - third-database-data:/var/lib/mysql
-    networks:
-      - laravel-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-
   # phpMyAdmin
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
@@ -148,15 +83,13 @@ services:
     ports:
       - "8080:80"
     environment:
-      - PMA_HOSTS=account-database,second-database,third-database
-      - PMA_PORTS=3306,3306,3306
+      - PMA_HOSTS=account-database
+      - PMA_PORTS=3306
       - PMA_USER=root
       - PMA_PASSWORD=rootpassword
       - UPLOAD_LIMIT=300M
     depends_on:
       - account-database
-      - second-database
-      - third-database
     networks:
       - laravel-network
 
@@ -172,15 +105,13 @@ services:
 
 networks:
   laravel-network:
-    driver: bridge
+    external: true
+    name: account_laravel-network
+  youfocus-network:
+    external: true
+    name: youfocus_default
 
 volumes:
   account-database-data:
-  second-database-data:
-  third-database-data:
   account-storage:
-  second-storage:
-  third-storage:
   account-vendor:
-  second-vendor:
-  third-vendor:
