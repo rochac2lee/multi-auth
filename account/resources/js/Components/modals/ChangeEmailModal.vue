@@ -1,6 +1,9 @@
 <script setup>
 import AccountModalBase from "./AccountModalBase.vue";
-import InfoIcon from "@/assets/icons/info.svg";
+import EmailChangeCodeModal from "./EmailChangeCodeModal.vue";
+import axios from "axios";
+import { ref } from "vue";
+import { router, usePage } from "@inertiajs/vue3";
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -10,7 +13,40 @@ const props = defineProps({
 const emit = defineEmits(["close", "save"]);
 
 const emitClose = () => emit("close");
-const emitSave = () => emit("save");
+
+const csrf = usePage().props.csrf;
+
+const isCodeModalOpen = ref(false);
+const pendingEmail = ref("");
+
+const onContinue = async () => {
+    const newMail = String(props.model?.newMail ?? "").trim();
+    if (!newMail || !/^\S+@\S+\.\S+$/.test(newMail)) {
+        return;
+    }
+
+    try {
+        await axios.post(
+            "/account/email/change",
+            { newMail },
+            {
+                headers: {
+                    "X-CSRF-TOKEN": csrf,
+                    Accept: "application/json",
+                },
+                withCredentials: true,
+            },
+        );
+
+        pendingEmail.value = newMail;
+        isCodeModalOpen.value = true;
+    } catch (error) {
+        console.error(
+            "Email change request error:",
+            error?.response?.data ?? error,
+        );
+    }
+};
 </script>
 
 <template>
@@ -18,17 +54,12 @@ const emitSave = () => emit("save");
         :open="open"
         title="Alterar E-mail"
         @close="emitClose"
-        @save="emitSave"
+        @save="onContinue"
+        :has-info-text="true"
+        info-text="Informe seu novo e-mail no campo abaixo para receber o código de verificação e concluir a alteração."
         text-button="Continuar"
     >
         <div class="space-y-6">
-            <div class="bg-[#FFFAE7] p-6 flex items-center gap-2">
-                <InfoIcon />
-                <p class="text-[#363646] text-[14px]">
-                    Informe seu novo e-mail no campo abaixo para receber o
-                    código de verificação e concluir a alteração.
-                </p>
-            </div>
             <!-- Full name -->
             <div>
                 <label class="block text-sm font-semibold text-[#363646] mb-1"
@@ -43,4 +74,17 @@ const emitSave = () => emit("save");
             </div>
         </div>
     </AccountModalBase>
+
+    <EmailChangeCodeModal
+        :open="isCodeModalOpen"
+        :pendingEmail="pendingEmail"
+        @close="isCodeModalOpen = false"
+        @save="
+            isCodeModalOpen = false;
+            emit('save');
+            emitClose();
+            router.reload({ only: ['user'] });
+        "
+        text-button="Verificar"
+    />
 </template>
