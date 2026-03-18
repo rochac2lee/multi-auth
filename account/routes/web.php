@@ -30,6 +30,9 @@ Route::middleware('web')->group(function () {
     Route::post('/account/avatar', [UserController::class, 'uploadAvatar'])->name('account.avatar.upload');
     Route::delete('/account/avatar', [UserController::class, 'deleteAvatar'])->name('account.avatar.delete');
     Route::post('/account/profile', [UserController::class, 'updateProfile'])->name('account.profile.update');
+
+    Route::post('/account/email/change', [UserController::class, 'requestEmailChangeCode']);
+    Route::post('/account/email/verify', [UserController::class, 'verifyEmailChangeCode']);
 });
 
 Route::get('/countries', [CountriesController::class, 'index'])->name('countries');
