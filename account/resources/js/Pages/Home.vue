@@ -27,18 +27,18 @@ const isEditModalOpen = ref(false);
 const isAdditionalModalOpen = ref(false);
 
 const editForm = ref({
-    nome_completo: props.user?.name ?? "",
+    name: props.user?.name ?? "",
     email: props.user?.email ?? "",
-    senha: "",
+    password: "",
     country_id: props.user?.country_id ?? props.user?.country?.id ?? null,
     country_name: props.user?.country?.name ?? "",
     country_flag_url: props.user?.country?.flag_url ?? "",
 });
 
 const additionalForm = ref({
-    nome_estudio: props.user?.photography_studio ?? "",
-    apelido: props.user?.surname ?? "",
-    nichos_principais: props.user?.niches ?? [],
+    photography_studio: props.user?.photography_studio ?? "",
+    surname: props.user?.surname ?? "",
+    main_niches: props.user?.niches ?? [],
     instagram: props.user?.instagram ?? "",
 });
 
@@ -50,9 +50,9 @@ const closeAllModals = () => {
 const openEditModal = () => {
     // Sincroniza valores atuais quando abre o modal.
     editForm.value = {
-        nome_completo: props.user?.name ?? "",
+        name: props.user?.name ?? "",
         email: props.user?.email ?? "",
-        senha: "",
+        password: "",
         country_id: props.user?.country_id ?? props.user?.country?.id ?? null,
         country_name: props.user?.country?.name ?? "",
         country_flag_url: props.user?.country?.flag_url ?? "",
@@ -65,8 +65,8 @@ const saveEditModal = async () => {
         await axios.post(
             route("account.profile.update"),
             {
-                nome_completo: editForm.value.nome_completo,
-                senha: editForm.value.senha ? editForm.value.senha : null,
+                nome_completo: editForm.value.name,
+                senha: editForm.value.password ? editForm.value.password : null,
                 country_id: editForm.value.country_id,
             },
             {
@@ -79,7 +79,7 @@ const saveEditModal = async () => {
         );
 
         await router.reload({ only: ["user"] });
-        editForm.value.senha = "";
+        editForm.value.password = "";
         closeAllModals();
     } catch (error) {
         console.error(
@@ -94,19 +94,17 @@ const saveAdditionalModal = async () => {
         await axios.post(
             route("account.profile.update"),
             {
-                nome_completo: props.user?.name ?? editForm.value.nome_completo,
+                nome_completo: props.user?.name ?? editForm.value.name,
                 country_id:
                     props.user?.country_id ??
                     props.user?.country?.id ??
                     editForm.value.country_id ??
                     null,
-                photography_studio: additionalForm.value.nome_estudio ?? null,
-                surname: additionalForm.value.apelido ?? null,
+                photography_studio: additionalForm.value.photography_studio ?? null,
+                surname: additionalForm.value.surname ?? null,
                 instagram: additionalForm.value.instagram ?? null,
-                nichos_principais: Array.isArray(
-                    additionalForm.value.nichos_principais,
-                )
-                    ? additionalForm.value.nichos_principais
+                nichos_principais: Array.isArray(additionalForm.value.main_niches)
+                    ? additionalForm.value.main_niches
                     : [],
             },
             {
@@ -130,9 +128,9 @@ const saveAdditionalModal = async () => {
 
 const openAdditionalModal = () => {
     additionalForm.value = {
-        nome_estudio: props.user?.photography_studio ?? "",
-        apelido: props.user?.surname ?? "",
-        nichos_principais: props.user?.niches ?? [],
+        photography_studio: props.user?.photography_studio ?? "",
+        surname: props.user?.surname ?? "",
+        main_niches: props.user?.niches ?? [],
         instagram: props.user?.instagram ?? "",
     };
     isAdditionalModalOpen.value = true;
