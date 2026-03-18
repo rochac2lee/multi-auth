@@ -27,6 +27,15 @@ class CountriesController extends Controller
             })
             ->values();
 
+        // Requisito: Brasil deve aparecer primeiro.
+        $brIndex = $countries->search(fn ($c) => ($c['alpha2'] ?? null) === 'BR');
+        if ($brIndex !== false && $brIndex !== 0) {
+            $br = $countries->get($brIndex);
+            $countries = $countries->values();
+            $countries = $countries->reject(fn ($c) => ($c['alpha2'] ?? null) === 'BR');
+            $countries = $countries->values()->prepend($br)->values();
+        }
+
         return response()->json($countries);
     }
 }
