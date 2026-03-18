@@ -1,0 +1,297 @@
+.account {
+  background: #F9FAFB;
+  font-family: "Open Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 100;
+}
+.account [data-tooltip] {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  font-size: 13px;
+}
+.account [data-tooltip]:before {
+  content: attr(data-tooltip);
+  display: none;
+  position: absolute;
+  bottom: 32px;
+  width: -webkit-max-content;
+  width: -moz-max-content;
+  width: max-content;
+  max-width: 240px !important;
+  line-height: 21px;
+  z-index: 100;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #707070;
+  background: #5C6977;
+  color: #FFFFFF;
+  border-radius: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.account [data-tooltip]:hover:before {
+  display: inline-block;
+}
+.account__top {
+  height: 88px;
+  background: #FFF;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.account__header {
+  height: 200px;
+  border-radius: 0 0 64px 0;
+  background: #363646;
+}
+.account__header-container {
+  width: 1224px;
+  height: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+}
+.account__header-container svg {
+  position: absolute;
+}
+.account__header-container .small-circle {
+  left: 0;
+  bottom: 0;
+  transform: translateY(50%);
+}
+.account__header-container .half-circle {
+  top: 0;
+  left: 106px;
+}
+.account__header-container .plus-sign-and-circle {
+  top: 44px;
+  right: 0;
+}
+.account__subscriptions {
+  margin-top: 43px;
+  width: 1224px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.account__subscriptions .account__subscriptions-title {
+  margin-bottom: 25px;
+}
+.account .subscriptions svg {
+  display: block;
+}
+.account .subscriptions__item {
+  display: flex;
+  border-radius: 4px;
+  align-items: center;
+  border: 1px solid #E0E5EA;
+  height: 96px;
+  background: #FFF;
+  margin-bottom: 12px;
+}
+.account .subscriptions__item:hover .actions-button {
+  opacity: 1;
+}
+.account .subscriptions__item-logo {
+  margin-left: 31px;
+  width: 200px;
+}
+.account .subscriptions .status {
+  height: 24px;
+  border-radius: 20px;
+  background: lightgrey;
+  padding: 2px 10px;
+  color: #FFF;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  cursor: default;
+}
+.account .subscriptions .status--active {
+  background: #25D060;
+}
+.account .subscriptions .status--suspended {
+  background: #FD8D18;
+}
+.account .subscriptions .status--awaiting-cancellation {
+  background: #FF888D;
+}
+.account .subscriptions .status--cancelled {
+  background: #FF3942;
+}
+.account .subscriptions__item-status {
+  margin-left: 79px;
+  width: 190px;
+}
+.account .subscriptions__item-plan {
+  line-height: 16px;
+  font-size: 12px;
+  margin-left: 21px;
+  width: 120px;
+}
+.account .subscriptions__item-balance {
+  line-height: 16px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  margin-left: 87px;
+  width: 150px;
+}
+.account .subscriptions__balance-icon {
+  margin-right: 6px;
+}
+.account .subscriptions__item-button {
+  margin-left: auto;
+  margin-right: 31px;
+}
+.account .subscriptions__item-actions {
+  margin-right: 31px;
+}
+.account .subscriptions__item-actions .actions-button {
+  opacity: 0;
+}
+.account .account__credit-cards {
+  width: 1224px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 42px;
+}
+.account .account__credit-cards .account__credit-cards-title {
+  margin-bottom: 26px;
+}
+.account .account__expired-warning {
+  margin-bottom: 8px;
+  align-items: center;
+}
+.account .c-card {
+  height: 96px;
+  border-radius: 4px;
+  border: 1px solid #E0E5EA;
+  background: #FFF;
+  display: flex;
+  align-items: center;
+}
+.account .c-card__brand {
+  width: 120px;
+}
+.account .c-card__brand img {
+  display: block;
+}
+.account .c-card__infos {
+  margin-left: 24px;
+}
+.account .c-card__last-numbers {
+  font-weight: 600;
+  margin-bottom: 9px;
+}
+.account .c-card__expiration {
+  font-size: 12px;
+}
+.account .c-card__button {
+  margin-left: auto;
+  margin-right: 31px;
+}
+.account .account__delete-account {
+  width: 1224px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 31px;
+  background: #FFEBEB;
+  height: 108px;
+  display: flex;
+  align-items: center;
+  margin-top: 80px;
+}
+.account .account__delete-account :first-child {
+  margin-right: 24px;
+}
+
+.minha-conta {
+  margin-top: 0 !important;
+  position: relative;
+  padding-bottom: 50px;
+  flex-direction: column;
+}
+.minha-conta .img_pais {
+  width: 21px;
+  margin-right: 10px;
+}
+.minha-conta .nome_pais {
+  text-transform: uppercase;
+}
+.minha-conta .img-profile {
+  width: 134px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -97px;
+  text-align: center;
+}
+.minha-conta .avatar {
+  border-color: #F9FAFB !important;
+  margin-bottom: 10px;
+}
+.minha-conta .img-profile__link {
+  color: #46abde;
+  font-size: 14px;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  display: inline-block;
+}
+.minha-conta .form.large {
+  width: 1224px;
+  min-width: 1224px;
+}
+.minha-conta .blocks {
+  margin-top: 126px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 342px;
+  width: 1224px;
+  min-width: 1224px;
+}
+.minha-conta fieldset {
+  width: 600px;
+}
+.minha-conta .columns__title {
+  text-align: center;
+  margin-bottom: 25px;
+}
+.minha-conta .columns__edit-box {
+  background: #FFF;
+  margin-left: 0;
+  padding: 40px;
+  border: 1px solid #E0E5EA;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.minha-conta .button-container {
+  text-align: right;
+}
+.minha-conta .columns__button {
+  width: 212px;
+  align-self: flex-start;
+}
+.minha-conta .columns__button i {
+  display: none;
+}
+.minha-conta .columns__button:hover i {
+  display: inline-block !important;
+}
+.minha-conta .edit-box .edit-box__edit-button {
+  display: none;
+}
+.minha-conta .edit-box:hover .edit-box__edit-button {
+  display: block;
+}
+.minha-conta .edit-box__value {
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+}
