@@ -6,28 +6,51 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
+use App\Models\App;
 use App\Models\Session;
 use App\Models\User;
 use App\Models\LoginToken;
+use App\Services\SsoAppUserService;
 use App\Mail\LoginLinkMail;
+use Illuminate\Support\Facades\Storage;
+use Exception;
+use Laravel\Passport\Token;
+use Throwable;
 
 class AuthController extends Controller
 {
+    private function decodeAppId(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $decoded = base64_decode($value, true);
+        return $decoded !== false ? $decoded : null;
+    }
+
+    private function encodeAppId(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return base64_encode($value);
+    }
+
     public function showLoginForm(Request $request)
     {
-        // SEMPRE verificar se a sessão existe no banco antes de reautenticar
-        // Isso evita reautenticação após logout quando a sessão foi deletada
-        if (Auth::check() && $request->has('redirect_uri')) {
+        $appIdRaw = $request->get('app_id');
+        $appId = $this->decodeAppId($appIdRaw);
+
+        if (Auth::check() && $appId) {
+            /** @var \App\Models\User $user */
             $user = Auth::user();
             $sessionId = $request->session()->getId();
             $sessionExists = false;
 
-            // Verificar se a sessão realmente existe no banco de dados
-            // Se não existir, significa que foi deletada no logout
             if (config('session.driver') === 'database') {
                 $sessionsTable = config('session.table', 'sessions');
                 $sessionExists = DB::table($sessionsTable)
@@ -35,52 +58,59 @@ class AuthController extends Controller
                     ->where('user_id', $user->id)
                     ->exists();
             } else {
-                // Para outros drivers de sessão, verificar se a sessão tem user_id
                 $sessionExists = $request->session()->has('login_web_' . sha1(User::class));
             }
 
-            // Se a sessão não existir no banco, fazer logout FORÇADO e mostrar tela de login
-                if (!$sessionExists) {
-                // Forçar logout mesmo que Auth::check() retorne true
-                    Auth::logout();
-                    $request->session()->invalidate();
-                    $request->session()->regenerateToken();
-
-                // Deletar cookie de sessão explicitamente
+            if (!$sessionExists) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
                 $sessionName = config('session.cookie');
                 $cookie = cookie()->forget($sessionName);
-
                 return response()
-                    ->view('auth.login')
+                    ->view('auth.login', ['app_id' => $appIdRaw])
                     ->withCookie($cookie)
                     ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                     ->header('Pragma', 'no-cache')
                     ->header('Expires', '0');
             }
 
-            // Se a sessão existe, gerar token e redirecionar
+            $app = $appId ? App::find($appId) : null;
+            if (!$app || !$app->redirect_uri) {
+                return view('auth.login', ['app_id' => $appIdRaw]);
+            }
+
+            $linked = $user->apps()->where('apps.id', $appId)->exists();
+            if (!$linked) {
+                // Sem `app_id` no redirect para evitar loop infinito nesse GET.
+                return redirect()->route('login')
+                    ->withErrors(['email' => 'Você não está vinculado a este aplicativo.']);
+            }
+
             $token = $user->createToken('SSO Token')->accessToken;
-            $redirectUri = urldecode($request->get('redirect_uri'));
-            $cleanUri = preg_replace('/[?#].*$/', '', $redirectUri);
+            $cleanUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
             if (!parse_url($cleanUri, PHP_URL_PATH)) {
                 $cleanUri = rtrim($cleanUri, '/') . '/';
             }
             return redirect()->away($cleanUri . '?token=' . urlencode($token));
         }
 
-        // NÃO reautenticar automaticamente baseado em sessões do banco
-        // Isso evita reautenticação após logout
-        // O usuário deve fazer login explicitamente
-
-        return view('auth.login');
+        return view('auth.login', ['app_id' => $appIdRaw]);
     }
 
     public function checkAuth(Request $request)
     {
-        // Esta view será usada pelos client apps para verificar autenticação via JavaScript
-        // O JavaScript fará uma requisição com credentials: 'include' para acessar os cookies de sessão
-        $redirectUri = $request->get('redirect_uri', env('APP_URL') . '/');
+        $appIdRaw = $request->get('app_id');
+        $redirectUri = null;
+        if ($appIdRaw) {
+            $appId = $this->decodeAppId($appIdRaw);
+            $app = $appId ? App::find($appId) : null;
+            if ($app && $app->redirect_uri) {
+                $redirectUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+            }
+        }
         return view('auth.verify', [
+            'appId' => $appIdRaw,
             'redirectUri' => $redirectUri,
         ]);
     }
@@ -89,44 +119,44 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'app_id' => 'nullable|string',
         ]);
 
+        $appIdRaw = $request->get('app_id');
+        $appId = $appIdRaw ? $this->decodeAppId($appIdRaw) : null;
         $email = $request->email;
-        $redirectUri = $request->get('redirect_uri');
 
-        // Verificar se o usuário existe
         $user = User::where('email', $email)->first();
 
         if (!$user) {
-            // Por segurança, não revelar se o email existe ou não
             return back()->with('status', 'Se o email estiver cadastrado, você receberá um link de login em breve.');
         }
 
-        // Gerar token de login
-        $loginToken = LoginToken::generate($email, $redirectUri);
-
-        // Criar URL de login
-        $loginUrl = route('login.verify', ['token' => $loginToken->token]);
-        if ($redirectUri) {
-            $loginUrl .= (strpos($loginUrl, '?') !== false ? '&' : '?') . 'redirect_uri=' . urlencode($redirectUri);
+        if ($appId) {
+            $linked = $user->apps()->where('apps.id', $appId)->exists();
+            if (!$linked) {
+                return back()->withErrors(['email' => 'Você não está vinculado a este aplicativo.']);
+            }
         }
 
-        // Enviar email com link de login (síncrono, sem fila)
+        $redirectUri = null;
+        if ($appId) {
+            $app = App::find($appId);
+            if ($app && $app->redirect_uri) {
+                $redirectUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+            }
+        }
+
+        $loginToken = LoginToken::generate($email, $appId, $redirectUri);
+
+        $loginUrl = route('login.verify', ['token' => $loginToken->token]);
+        if ($appId) {
+            $loginUrl .= (strpos($loginUrl, '?') !== false ? '&' : '?') . 'app_id=' . urlencode($this->encodeAppId($appId));
+        }
+
         try {
-            Log::info('Tentando enviar email para: ' . $email);
-            Log::info('URL de login gerada: ' . $loginUrl);
-            Log::info('Mailer configurado: ' . config('mail.default'));
-            Log::info('SMTP Host: ' . config('mail.mailers.smtp.host'));
-            Log::info('SMTP Port: ' . config('mail.mailers.smtp.port'));
-
-            // Forçar uso do mailer SMTP explicitamente
-            $result = Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
-
-            Log::info('Resultado do envio: ' . ($result ? 'sucesso' : 'falhou'));
-            Log::info('Email de login enviado com sucesso para: ' . $email);
-        } catch (\Exception $e) {
-            Log::error('Erro ao enviar email de login: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
+        } catch (Exception $e) {
             return back()->withErrors([
                 'email' => 'Erro ao enviar email. Tente novamente mais tarde.',
             ]);
@@ -144,7 +174,6 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Link de login inválido ou expirado.']);
         }
 
-        // Buscar usuário pelo email
         $user = User::where('email', $loginToken->email)->first();
 
         if (!$user) {
@@ -152,130 +181,127 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Usuário não encontrado.']);
         }
 
-        // Fazer login do usuário
         Auth::login($user);
 
-        // Regenerar a sessão após o login
-            $request->session()->regenerate();
+        $request->session()->regenerate();
+        $newSessionId = $request->session()->getId();
+        Session::where('user_id', $user->id)
+            ->whereRaw('id != ?', [$newSessionId])
+            ->delete();
 
-            // Limpar TODAS as sessões antigas do mesmo usuário após regenerar
-            $newSessionId = $request->session()->getId();
-            Session::where('user_id', $user->id)
-                ->whereRaw('id != ?', [$newSessionId])
-                ->delete();
+        $request->session()->save();
+        $sessionId = $request->session()->getId();
+        $updated = Session::where('id', $sessionId)
+            ->update(['user_id' => $user->id]);
 
-            // Forçar salvar a sessão primeiro
+        if ($updated === 0) {
             $request->session()->save();
-
-        // Atualizar o user_id na tabela sessions
-            $sessionId = $request->session()->getId();
-            $updated = Session::where('id', $sessionId)
+            Session::where('id', $sessionId)
                 ->update(['user_id' => $user->id]);
+        }
 
-            if ($updated === 0) {
-                $request->session()->save();
-                Session::where('id', $sessionId)
-                    ->update(['user_id' => $user->id]);
-            }
-
-        // Marcar token como usado
         $loginToken->markAsUsed();
 
-            // Criar token de acesso para o usuário
         $ssoToken = $user->createToken('SSO Token')->accessToken;
 
-        // Se houver redirect_uri, redirecionar para ele com o token
-        $redirectUri = $request->get('redirect_uri') ?? $loginToken->redirect_uri;
-            if ($redirectUri) {
-                $decodedUri = urldecode($redirectUri);
-                $cleanUri = preg_replace('/[?#].*$/', '', $decodedUri);
+        $redirectUri = $loginToken->redirect_uri;
+        if (!$redirectUri) {
+            $appIdFromToken = $loginToken->app_id;
+            if ($appIdFromToken) {
+                $app = App::find($appIdFromToken);
+                if ($app && $app->redirect_uri) {
+                    $redirectUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+                }
+            }
+        }
+
+        if ($redirectUri) {
+            $cleanUri = preg_replace('/[?#].*$/', '', $redirectUri);
+            if (!parse_url($cleanUri, PHP_URL_PATH)) {
+                $cleanUri = rtrim($cleanUri, '/') . '/';
+            }
+            $separator = str_contains($cleanUri, '?') ? '&' : '?';
+            $finalUri = $cleanUri . $separator . 'token=' . urlencode($ssoToken);
+            return redirect()->away($finalUri)
+                ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
+        }
+
+        $appIdFromRequest = $request->get('app_id');
+        $appId = $appIdFromRequest ? $this->decodeAppId($appIdFromRequest) : $loginToken->app_id;
+        if ($appId) {
+            $linked = $user->apps()->where('apps.id', $appId)->exists();
+            if (!$linked) {
+                return redirect()->route('login', ['app_id' => $this->encodeAppId($appId)])
+                    ->withErrors(['email' => 'Você não está vinculado a este aplicativo.']);
+            }
+            $app = $app ?? App::find($appId);
+            if ($app && $app->redirect_uri) {
+                $cleanUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
                 if (!parse_url($cleanUri, PHP_URL_PATH)) {
                     $cleanUri = rtrim($cleanUri, '/') . '/';
                 }
-            $finalUri = $cleanUri . '?token=' . urlencode($ssoToken);
-
+                $finalUri = $cleanUri . '?token=' . urlencode($ssoToken);
                 return redirect()->away($finalUri)
-                ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
+                    ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
             }
+        }
 
-            // Caso contrário, redirecionar para todas as apps
-        $secondAppUrl = env('SECOND_APP_URL', 'http://second.test') . '?token=' . $ssoToken;
-        $thirdAppUrl = env('THIRD_APP_URL', 'http://third.test') . '?token=' . $ssoToken;
+        $appUrls = $user->apps()
+            ->whereNotNull('redirect_uri')
+            ->pluck('redirect_uri')
+            ->map(fn($uri) => rtrim(preg_replace('/[?#].*$/', '', $uri), '/') . '/?token=' . urlencode($ssoToken))
+            ->values()
+            ->all();
 
-            return response()
-                ->view('auth.redirect', [
+        return response()
+            ->view('auth.redirect', [
                 'token' => $ssoToken,
-                    'secondAppUrl' => $secondAppUrl,
-                    'thirdAppUrl' => $thirdAppUrl,
-                ])
+                'appUrls' => $appUrls,
+            ])
             ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
     }
 
     public function logout(Request $request)
     {
-        // Obter usuário - pode ser via web (Auth::user()) ou via API ($request->user())
-        // O middleware auth:api já configura $request->user() automaticamente
         $user = $request->user() ?? Auth::user();
         $sessionId = $request->hasSession() ? $request->session()->getId() : null;
 
-        // Se ainda não conseguiu obter o usuário e houver token Bearer, tentar obter do token
         if (!$user && $request->bearerToken()) {
             try {
                 $token = $request->bearerToken();
-                // Passport armazena tokens com hash SHA256
                 $tokenHash = hash('sha256', $token);
-                $tokenData = \Laravel\Passport\Token::where('id', $tokenHash)->first();
+                $tokenData = Token::where('id', $tokenHash)->first();
                 if ($tokenData && $tokenData->user_id) {
                     $user = User::find($tokenData->user_id);
                 }
-            } catch (\Exception $e) {
-                Log::error('Erro ao obter usuário do token: ' . $e->getMessage());
+            } catch (Exception $e) {
             }
         }
 
-        // Revogar todos os tokens do usuário e limpar sessões
         if ($user) {
-            // Fazer logout em todos os sistemas (second e third) ANTES de deletar os tokens
-            // Isso permite criar um token temporário para autenticar as chamadas
             $this->logoutFromOtherSystems($user);
-
-            // Deletar todos os tokens do usuário
             $user->tokens()->delete();
-
-            // Deletar TODAS as sessões do usuário no banco de dados (não apenas limpar user_id)
-            // Isso garante que o middleware CheckAuth não vai reautenticar o usuário
             Session::where('user_id', $user->id)->delete();
-
-            Log::info('Logout - Deletou todas as sessões do usuário ID: ' . $user->id);
         } else {
-            // Se não houver usuário autenticado, deletar a sessão atual mesmo assim (se houver)
             if ($sessionId) {
                 Session::where('id', $sessionId)->delete();
             }
-            Log::warning('Logout - Nenhum usuário encontrado para fazer logout');
         }
 
-        // Fazer logout e invalidar sessão (apenas se houver sessão web)
         if ($request->hasSession()) {
             $sessionName = config('session.cookie');
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-
-            // Deletar o cookie de sessão explicitamente
             $cookie = cookie()->forget($sessionName);
         }
 
-        // Se for uma requisição API, retornar JSON
         if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json(['message' => 'Logged out successfully'])
                 ->cookie('sso_token', '', -1, '/', null, false, false)
                 ->withCookie($cookie ?? cookie()->forget(config('session.cookie')));
         }
 
-        // Se for requisição web, retornar view que limpa localStorage e depois redireciona
-        // Isso garante que o localStorage seja limpo no navegador
-        // Redirecionar para login que não passa pelo middleware CheckAuth
         return redirect()->route('login')
             ->withHeaders([
                 'Cache-Control' => 'no-cache, no-store, must-revalidate',
@@ -301,19 +327,55 @@ class AuthController extends Controller
         ]);
     }
 
+    public function getUserApps(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $apps = $user->apps()->get(['apps.id', 'apps.name', 'apps.redirect_uri']);
+
+        return response()->json($apps->map(fn($app) => [
+            'id'   => $app->id,
+            'name' => $app->name,
+        ])->values());
+    }
+
+    public function linkCurrentUserToApp(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'app_id' => 'required|exists:apps,id',
+        ]);
+
+        $app = App::find($validated['app_id']);
+
+        if (!$app) {
+            return response()->json(['error' => 'App not found'], 404);
+        }
+
+        $user->apps()->syncWithoutDetaching([$app->id]);
+
+        return response()->json([
+            'linked' => true,
+            'app_id' => $app->id,
+        ]);
+    }
+
     public function generateToken(Request $request)
     {
-        // Verificar se está autenticado via sessão web
+        $allowedOrigins = App::getAllowedOrigins();
+
         if (!Auth::check()) {
             $origin = $request->headers->get('Origin');
             $response = response()->json(['error' => 'Unauthenticated'], 401);
-
-            $allowedOrigins = [
-                'http://second.test',
-                'http://third.test',
-                'http://localhost:8002',
-                'http://localhost:8003',
-            ];
 
             $response->header('Access-Control-Allow-Credentials', 'true');
             if ($origin && in_array($origin, $allowedOrigins)) {
@@ -325,6 +387,7 @@ class AuthController extends Controller
             return $response;
         }
 
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         $tokenResult = $user->createToken('SSO Token');
 
@@ -334,7 +397,7 @@ class AuthController extends Controller
         ]);
 
         $response->header('Access-Control-Allow-Credentials', 'true');
-        if ($origin && in_array($origin, ['http://localhost:8002', 'http://localhost:8003'])) {
+        if ($origin && in_array($origin, $allowedOrigins)) {
             $response->header('Access-Control-Allow-Origin', $origin);
         } else {
             $response->header('Access-Control-Allow-Origin', '*');
@@ -343,85 +406,184 @@ class AuthController extends Controller
         return $response;
     }
 
-    public function showRegisterForm()
+    public function showRegisterForm(Request $request)
     {
-        return view('auth.register');
+        return view('auth.register', ['app_id' => $request->get('app_id')]);
     }
 
-    public function register(Request $request)
+    public function register(Request $request, SsoAppUserService $ssoAppUserService)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255',
+            'app_id' => 'nullable|string',
         ]);
 
-        // Criar usuário sem senha (já que usamos login por email)
-        $user = User::create([
-            'name' => $validated['name'],
+        $appIdRaw = $validated['app_id'] ?? null;
+        $appId = $appIdRaw ? $this->decodeAppId($appIdRaw) : null;
+
+        Log::info('Account register: incoming request', [
             'email' => $validated['email'],
-            'password' => Hash::make(uniqid()), // Senha aleatória que nunca será usada
+            'app_id_raw' => $appIdRaw,
+            'app_id_decoded' => $appId,
         ]);
 
-        // Redirecionar para login com mensagem de sucesso
-        return redirect()->route('login')
-            ->with('status', 'Cadastro realizado com sucesso! Faça login com seu email.');
-    }
+        $existingUser = User::where('email', $validated['email'])->first();
+        if ($existingUser) {
+            $email = $existingUser->email;
 
-    /**
-     * Redirecionar para o Google OAuth
-     */
-    public function redirectToGoogle(Request $request)
-    {
-        $redirectUri = $request->get('redirect_uri');
+            if ($appId) {
+                $app = App::find($appId);
+                if ($app) {
+                    $existingUser->apps()->syncWithoutDetaching([$app->id]);
+                    $ssoAppUserService->syncRemoteUserForApp(
+                        $app,
+                        $existingUser->name ?? $validated['name'],
+                        $existingUser->email,
+                        (int) $existingUser->id
+                    );
+                }
 
-        // Armazenar redirect_uri na sessão para usar no callback
-        if ($redirectUri) {
-            $request->session()->put('oauth_redirect_uri', $redirectUri);
+                $redirectUri = null;
+                if ($app && $app->redirect_uri) {
+                    $redirectUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+                }
+
+                $loginToken = LoginToken::generate($email, $appId, $redirectUri);
+
+                $loginUrl = route('login.verify', ['token' => $loginToken->token]);
+                $loginUrl .= (strpos($loginUrl, '?') !== false ? '&' : '?') . 'app_id=' . urlencode($this->encodeAppId($appId));
+
+                try {
+                    Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
+                } catch (Exception $e) {
+                    return redirect()->route('login', ['app_id' => $this->encodeAppId($appId)])
+                        ->withErrors(['email' => 'Erro ao enviar email. Tente novamente mais tarde.']);
+                }
+
+                return redirect()->route('login', ['app_id' => $this->encodeAppId($appId)])
+                    ->with('status', 'Você já possui uma conta. Vinculamos este aplicativo ao seu usuário. Enviamos um link de acesso para seu email.');
+            }
+
+            $loginToken = LoginToken::generate($email, null, null);
+            $loginUrl = route('login.verify', ['token' => $loginToken->token]);
+
+            try {
+                Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
+            } catch (Exception $e) {
+                return redirect()->route('login')
+                    ->withErrors(['email' => 'Erro ao enviar email. Tente novamente mais tarde.']);
+            }
+
+            return redirect()->route('login')
+                ->with('status', 'Você já possui uma conta. Enviamos um link de acesso para seu email.');
         }
 
+        // Cria o usuário no account primeiro — o account é a fonte de verdade do ID
+        $user = User::create([
+            'name'     => $validated['name'],
+            'email'    => $validated['email'],
+            'password' => Hash::make(uniqid()),
+        ]);
+
+        // Sincroniza com o app remoto passando o ID gerado pelo account
+        if ($appId) {
+            $app = App::find($appId);
+            [, $externalName] = $ssoAppUserService->syncRemoteUserForApp(
+                $app,
+                $validated['name'],
+                $validated['email'],
+                (int) $user->id
+            );
+            // Atualiza o nome se o app remoto retornou um nome diferente (ex.: usuário legado)
+            if ($externalName !== $validated['name']) {
+                $user->name = $externalName;
+                $user->save();
+            }
+        }
+
+        $email = $user->email;
+
+        if ($appId) {
+            $app = App::find($appId);
+            if ($app) {
+                $user->apps()->syncWithoutDetaching([$app->id]);
+                Log::info('Account register: linked user to app', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'app_id' => $app->id,
+                ]);
+            }
+
+            $redirectUri = null;
+            if ($app && $app->redirect_uri) {
+                $redirectUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+            }
+
+            $loginToken = LoginToken::generate($email, $appId, $redirectUri);
+
+            $loginUrl = route('login.verify', ['token' => $loginToken->token]);
+            $loginUrl .= (strpos($loginUrl, '?') !== false ? '&' : '?') . 'app_id=' . urlencode($this->encodeAppId($appId));
+
+            try {
+                Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
+            } catch (Exception $e) {
+                return redirect()->route('login', ['app_id' => $this->encodeAppId($appId)])
+                    ->withErrors(['email' => 'Erro ao enviar email. Tente novamente mais tarde.']);
+            }
+
+            return redirect()->route('login', ['app_id' => $this->encodeAppId($appId)])
+                ->with('status', 'Cadastro realizado com sucesso! Enviamos um link de acesso para seu email.');
+        }
+
+        $loginToken = LoginToken::generate($email, null, null);
+        $loginUrl = route('login.verify', ['token' => $loginToken->token]);
+
+        try {
+            Mail::mailer('smtp')->to($email)->send(new LoginLinkMail($loginUrl));
+        } catch (Exception $e) {
+            return redirect()->route('login')
+                ->withErrors(['email' => 'Erro ao enviar email. Tente novamente mais tarde.']);
+        }
+
+        return redirect()->route('login')
+            ->with('status', 'Cadastro realizado com sucesso! Enviamos um link de acesso para seu email.');
+    }
+
+    public function redirectToGoogle(Request $request)
+    {
+        $appId = $this->decodeAppId($request->get('app_id'));
+        if ($appId) {
+            $request->session()->put('oauth_app_id', $appId);
+        }
         return Socialite::driver('google')->redirect();
     }
 
-    /**
-     * Lidar com o callback do Google OAuth
-     */
     public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-
-            // Buscar ou criar usuário
             $user = User::firstOrNew(['email' => $googleUser->getEmail()]);
 
             if (!$user->exists) {
-                // Novo usuário - criar com dados do Google
                 $user->name = $googleUser->getName();
-                $user->password = Hash::make(uniqid()); // Senha aleatória que nunca será usada
+                $user->password = Hash::make(uniqid());
                 $user->save();
             } else {
-                // Usuário existente - atualizar nome se necessário
                 if (!$user->name || $user->name !== $googleUser->getName()) {
                     $user->name = $googleUser->getName();
                     $user->save();
                 }
             }
 
-            // Fazer login do usuário
             Auth::login($user);
-
-            // Regenerar a sessão após o login
             $request->session()->regenerate();
-
-            // Limpar TODAS as sessões antigas do mesmo usuário após regenerar
             $newSessionId = $request->session()->getId();
             Session::where('user_id', $user->id)
                 ->whereRaw('id != ?', [$newSessionId])
                 ->delete();
 
-            // Forçar salvar a sessão primeiro
             $request->session()->save();
-
-            // Atualizar o user_id na tabela sessions
             $sessionId = $request->session()->getId();
             $updated = Session::where('id', $sessionId)
                 ->update(['user_id' => $user->id]);
@@ -432,100 +594,110 @@ class AuthController extends Controller
                     ->update(['user_id' => $user->id]);
             }
 
-            // Criar token de acesso para o usuário
             $ssoToken = $user->createToken('SSO Token')->accessToken;
 
-            // Recuperar redirect_uri da sessão
-            $redirectUri = $request->session()->pull('oauth_redirect_uri') ?? $request->get('redirect_uri');
-
-            if ($redirectUri) {
-                $decodedUri = urldecode($redirectUri);
-                $cleanUri = preg_replace('/[?#].*$/', '', $decodedUri);
-                if (!parse_url($cleanUri, PHP_URL_PATH)) {
-                    $cleanUri = rtrim($cleanUri, '/') . '/';
+            $appIdFromSession = $request->session()->pull('oauth_app_id');
+            $appIdFromRequest = $request->get('app_id');
+            $appId = $appIdFromSession ?? ($appIdFromRequest ? $this->decodeAppId($appIdFromRequest) : null);
+            if ($appId) {
+                $linked = $user->apps()->where('apps.id', $appId)->exists();
+                if ($linked) {
+                    $app = App::find($appId);
+                    if ($app && $app->redirect_uri) {
+                        $cleanUri = preg_replace('/[?#].*$/', '', $app->redirect_uri);
+                        if (!parse_url($cleanUri, PHP_URL_PATH)) {
+                            $cleanUri = rtrim($cleanUri, '/') . '/';
+                        }
+                        $finalUri = $cleanUri . '?token=' . urlencode($ssoToken);
+                        return redirect()->away($finalUri)
+                            ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
+                    }
                 }
-                $finalUri = $cleanUri . '?token=' . urlencode($ssoToken);
-
-                return redirect()->away($finalUri)
-                    ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
             }
 
-            // Caso contrário, redirecionar para todas as apps
-            $secondAppUrl = env('SECOND_APP_URL', 'http://second.test') . '?token=' . $ssoToken;
-            $thirdAppUrl = env('THIRD_APP_URL', 'http://third.test') . '?token=' . $ssoToken;
+            $appUrls = $user->apps()
+                ->whereNotNull('redirect_uri')
+                ->pluck('redirect_uri')
+                ->map(fn($uri) => rtrim(preg_replace('/[?#].*$/', '', $uri), '/') . '/?token=' . urlencode($ssoToken))
+                ->values()
+                ->all();
 
             return response()
                 ->view('auth.redirect', [
                     'token' => $ssoToken,
-                    'secondAppUrl' => $secondAppUrl,
-                    'thirdAppUrl' => $thirdAppUrl,
+                    'appUrls' => $appUrls,
                 ])
                 ->cookie('sso_token', encrypt($ssoToken), 60 * 24 * 15, '/', null, false, false);
-
         } catch (\Exception $e) {
-            Log::error('Erro no callback do Google OAuth: ' . $e->getMessage());
             return redirect()->route('login')
                 ->withErrors(['email' => 'Erro ao fazer login com Google. Tente novamente.']);
         }
     }
 
-    /**
-     * Fazer logout em todos os sistemas (second e third)
-     */
     private function logoutFromOtherSystems($user)
     {
-        $secondAppUrl = env('SECOND_APP_URL', 'http://second.test:8002');
-        $thirdAppUrl = env('THIRD_APP_URL', 'http://third.test:8003');
+        // Apenas apps vinculados ao usuário e que tenham redirect_uri
+        $apps = $user->apps()->whereNotNull('redirect_uri')->get();
+        if ($apps->isEmpty()) {
+            return;
+        }
 
-        // Para comunicação interna no Docker, usar os nomes dos serviços
-        $secondApiUrl = str_contains($secondAppUrl, '.test') ? 'http://second-laravel:8000' : $secondAppUrl;
-        $thirdApiUrl = str_contains($thirdAppUrl, '.test') ? 'http://third-laravel:8000' : $thirdAppUrl;
-
-        // Criar um token temporário para o logout (antes de deletar todos os tokens)
         try {
             $token = $user->createToken('Logout Token')->accessToken;
 
-            // Fazer logout no second
-            try {
-                $response = Http::timeout(3)->withHeaders([
-                    'Accept' => 'application/json',
-                    'Authorization' => 'Bearer ' . $token,
-                ])->post($secondApiUrl . '/api/logout', [
-                    'email' => $user->email,
-                ]);
+            foreach ($apps as $app) {
+                $config = is_array($app->config)
+                    ? $app->config
+                    : (array) json_decode($app->config ?? '{}', true);
 
-                if ($response->successful()) {
-                    Log::info('Logout no second realizado com sucesso para: ' . $user->email);
-                } else {
-                    Log::warning('Logout no second falhou: ' . $response->body());
+                // Preferência: api_url explícita no config; senão deriva do redirect_uri
+                $apiBase = !empty($config['api_url'])
+                    ? rtrim($config['api_url'], '/')
+                    : null;
+
+                if (!$apiBase && $app->redirect_uri) {
+                    $parsed = parse_url($app->redirect_uri);
+                    $host = $parsed['host'] ?? '';
+
+                    // Em ambiente local .test, mapeia para o host Docker interno
+                    if (str_ends_with($host, '.youfocus.test')) {
+                        // Fotovibe usa porta 8082, youfocus usa porta 80
+                        if (str_starts_with($host, 'fotovibe.')) {
+                            $apiBase = 'http://host.docker.internal:8082';
+                        } else {
+                            $apiBase = 'http://youfocus-app:8000';
+                        }
+                    } elseif (!empty($parsed['scheme']) && !empty($host)) {
+                        $apiBase = $parsed['scheme'] . '://' . $host;
+                        if (!empty($parsed['port'])) {
+                            $apiBase .= ':' . $parsed['port'];
+                        }
+                    }
                 }
-            } catch (\Exception $e) {
-                Log::warning('Erro ao fazer logout no second: ' . $e->getMessage());
+
+                if (!$apiBase) {
+                    continue;
+                }
+
+                try {
+                    Http::timeout(3)->withHeaders([
+                        'Accept' => 'application/json',
+                        'Authorization' => 'Bearer ' . $token,
+                    ])->post($apiBase . '/api/sso/logout', [
+                        'email' => $user->email,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('SSO logout: falha ao notificar app', [
+                        'app_id' => $app->id,
+                        'api_base' => $apiBase,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
-            // Fazer logout no third
-            try {
-                $response = Http::timeout(3)->withHeaders([
-                    'Accept' => 'application/json',
-                    'Authorization' => 'Bearer ' . $token,
-                ])->post($thirdApiUrl . '/api/logout', [
-                    'email' => $user->email,
-                ]);
-
-                if ($response->successful()) {
-                    Log::info('Logout no third realizado com sucesso para: ' . $user->email);
-                } else {
-                    Log::warning('Logout no third falhou: ' . $response->body());
-                }
-            } catch (\Exception $e) {
-                Log::warning('Erro ao fazer logout no third: ' . $e->getMessage());
-            }
-
-            // Revogar o token temporário
             $user->tokens()->where('name', 'Logout Token')->delete();
         } catch (\Exception $e) {
-            Log::warning('Erro ao criar token para logout nos outros sistemas: ' . $e->getMessage());
+            Log::warning('SSO logout: erro geral', ['error' => $e->getMessage()]);
         }
     }
 }
-
