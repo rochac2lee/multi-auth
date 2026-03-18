@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use App\Http\Resources\UserResource;
+use App\Models\Niche;
 
 class UserController extends Controller
 {
@@ -113,16 +114,65 @@ class UserController extends Controller
         }
 
         $data = $request->validate([
-            'nome_completo' => ['required', 'string', 'max:100'],
+            // Pode vir tanto do modal de edição de cadastro (obrigatório)
+            // quanto do modal de informações adicionais (não obrigatório).
+            'nome_completo' => ['sometimes', 'required', 'string', 'max:100'],
             'country_id' => ['nullable', 'exists:countries,id'],
             'senha' => ['nullable', 'string', 'min:6', 'max:100'],
+
+            // Campos do modal "Informações adicionais"
+            'photography_studio' => ['nullable', 'string', 'max:255'],
+            'surname' => ['nullable', 'string', 'max:100'],
+            'instagram' => ['nullable', 'string', 'max:100'],
+            'nichos_principais' => ['nullable', 'array'],
+            'nichos_principais.*' => ['string', 'max:100'],
         ]);
 
-        $user->name = $data['nome_completo'];
-        $user->country_id = $data['country_id'] ?? null;
+        if ($request->has('nome_completo')) {
+            $user->name = $data['nome_completo'];
+        }
+
+        // Se não vier no request, não altera o country.
+        if ($request->has('country_id')) {
+            $user->country_id = $data['country_id'];
+        }
 
         if ($request->filled('senha')) {
             $user->password = Hash::make($request->string('senha'));
+        }
+
+        if ($request->has('photography_studio')) {
+            $user->photography_studio = $data['photography_studio'];
+        }
+
+        if ($request->has('surname')) {
+            $user->surname = $data['surname'];
+        }
+
+        if ($request->has('instagram')) {
+            $user->instagram = $data['instagram'];
+        }
+
+        // Nichos são many-to-many via pivot.
+        if ($request->has('nichos_principais')) {
+            $names = $data['nichos_principais'] ?? [];
+            $uniqueNames = array_values(array_unique($names));
+
+            $found = Niche::query()
+                ->whereIn('name', $uniqueNames)
+                ->pluck('name')
+                ->all();
+
+            if (count($found) !== count($uniqueNames)) {
+                return response()->json(['message' => 'Invalid niches'], 422);
+            }
+
+            $nicheIds = Niche::query()
+                ->whereIn('name', $uniqueNames)
+                ->pluck('id')
+                ->all();
+
+            $user->niches()->sync($nicheIds);
         }
 
         $user->save();
