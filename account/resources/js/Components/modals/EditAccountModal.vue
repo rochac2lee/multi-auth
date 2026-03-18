@@ -16,6 +16,7 @@ const emitSave = () => emit("save");
 
 const countries = ref([]);
 const isCountryDropdownOpen = ref(false);
+const countrySearch = ref("");
 
 const selectedCountry = computed(() => {
     const rawId = props.model?.country_id ?? null;
@@ -72,7 +73,24 @@ const getCountries = async () => {
 
 const toggleCountryDropdown = () => {
     isCountryDropdownOpen.value = !isCountryDropdownOpen.value;
+    if (isCountryDropdownOpen.value) {
+        countrySearch.value = "";
+    }
 };
+
+const filteredCountries = computed(() => {
+    const q = String(countrySearch.value ?? "")
+        .trim()
+        .toLowerCase();
+    if (!q) {
+        return countries.value;
+    }
+
+    return countries.value.filter((c) => {
+        const name = String(c?.name ?? "").toLowerCase();
+        return name.includes(q);
+    });
+});
 
 const selectCountry = (countryId) => {
     props.model.country_id = countryId;
@@ -179,7 +197,7 @@ onBeforeUnmount(() => {
                                 v-if="selectedCountry?.flag_url"
                                 :src="selectedCountry.flag_url"
                                 alt=""
-                                class="select__image w-5 h-5 rounded-[2px]"
+                                class="select__image"
                             />
                             <span>{{
                                 selectedCountry?.name ||
@@ -194,16 +212,18 @@ onBeforeUnmount(() => {
                         v-if="isCountryDropdownOpen"
                         class="absolute left-0 right-0 mt-2 bg-white border border-[#E0E5EA] rounded-[4px] max-h-64 overflow-auto z-[80]"
                     >
-                        <button
-                            type="button"
-                            class="w-full px-3 py-2 text-left hover:bg-[#F9FAFB] flex items-center gap-2"
-                            @click="selectCountry(null)"
-                        >
-                            <span class="text-[#A3B0BF]">Nenhum</span>
-                        </button>
+                        <div class="px-3 py-2">
+                            <input
+                                v-model="countrySearch"
+                                type="text"
+                                maxlength="80"
+                                placeholder="Buscar país"
+                                class="w-full border border-[#E0E5EA] rounded-[4px] px-3 py-2 text-[#363646] focus:outline-none"
+                            />
+                        </div>
 
                         <button
-                            v-for="c in countries"
+                            v-for="c in filteredCountries"
                             :key="c.id"
                             type="button"
                             class="w-full px-3 py-2 text-left hover:bg-[#F9FAFB] flex items-center gap-2"
@@ -218,7 +238,7 @@ onBeforeUnmount(() => {
                                 v-if="c.flag_url"
                                 :src="c.flag_url"
                                 alt=""
-                                class="select__image w-5 h-5 rounded-[2px]"
+                                class="select__image"
                             />
                             <span class="text-[#363646]">{{ c.name }}</span>
                         </button>
@@ -231,8 +251,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .select-pais .select__image {
-    width: 20px !important;
-    height: 20px !important;
+    min-width: 25px !important;
+    max-height: 25px !important;
     justify-content: left !important;
     overflow: hidden !important;
     margin-right: 3px !important;
@@ -240,7 +260,7 @@ onBeforeUnmount(() => {
 }
 
 .select-pais img {
-    height: 100% !important;
+    height: 20px !important;
     transform: translateX(-3px) !important;
 }
 </style>
