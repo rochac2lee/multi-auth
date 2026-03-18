@@ -5,6 +5,7 @@ defineProps({
     open: { type: Boolean, default: false },
     title: { type: String, required: true },
     customClass: { type: String, default: "" },
+    textButton: { type: String, default: "Salvar" },
 });
 
 defineEmits(["close", "save"]);
@@ -50,7 +51,7 @@ defineEmits(["close", "save"]);
                         class="h-10 px-5 rounded-[4px] bg-[#25D060] border border-[#21BB56] text-white font-semibold"
                         @click="$emit('save')"
                     >
-                        Salvar
+                        {{ textButton }}
                     </button>
                 </div>
             </div>
@@ -61,7 +62,9 @@ defineEmits(["close", "save"]);
 <style>
 .vf-modal-enter-active,
 .vf-modal-leave-active {
-    transition: opacity 150ms ease, transform 150ms ease;
+    transition:
+        opacity 150ms ease,
+        transform 150ms ease;
 }
 
 .vf-modal-enter-from,
