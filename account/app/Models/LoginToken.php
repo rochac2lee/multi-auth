@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
+use App\Models\App;
+
 class LoginToken extends Model
 {
     use HasFactory;
@@ -13,6 +15,7 @@ class LoginToken extends Model
     protected $fillable = [
         'email',
         'token',
+        'app_id',
         'redirect_uri',
         'expires_at',
         'used_at',
@@ -23,12 +26,8 @@ class LoginToken extends Model
         'used_at' => 'datetime',
     ];
 
-    /**
-     * Gerar um novo token de login
-     */
-    public static function generate(string $email, ?string $redirectUri = null): self
+    public static function generate(string $email, ?string $appId = null, ?string $redirectUri = null): self
     {
-        // Deletar tokens antigos não utilizados do mesmo email
         self::where('email', $email)
             ->whereNull('used_at')
             ->where('expires_at', '>', now())
@@ -37,23 +36,23 @@ class LoginToken extends Model
         return self::create([
             'email' => $email,
             'token' => Str::random(64),
+            'app_id' => $appId,
             'redirect_uri' => $redirectUri,
-            'expires_at' => now()->addMinutes(15), // Token válido por 15 minutos
+            'expires_at' => now()->addMinutes(15),
         ]);
     }
 
-    /**
-     * Verificar se o token é válido
-     */
+    public function app()
+    {
+        return $this->belongsTo(App::class);
+    }
+
     public function isValid(): bool
     {
         return $this->used_at === null
             && $this->expires_at->isFuture();
     }
 
-    /**
-     * Marcar token como usado
-     */
     public function markAsUsed(): void
     {
         $this->update(['used_at' => now()]);
