@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,13 +15,15 @@
             margin: 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
+
         .container {
             background: white;
             padding: 2rem;
             border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
+
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
@@ -30,12 +33,19 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="spinner"></div>
@@ -54,5 +64,5 @@
         }, appUrls.length ? 1000 : 0);
     </script>
 </body>
-</html>
 
+</html>

@@ -12,12 +12,11 @@ Route::get('/', [UserController::class, 'home'])->name('home');
 
 // Rotas nomeadas exigidas pela view "minha-conta" (copiada do youfocus).
 // Aqui elas só evitam quebra do Blade no account.
-Route::get('/selpics/pricing', fn () => redirect('/'))->name('selpics.pricing');
-Route::get('/selpics', fn () => redirect('/'))->name('selpics');
-Route::get('/workspace/attach-youbox', fn () => redirect('/'))->name('workspace.attach-youbox');
-Route::get('/account/terminate', fn () => redirect('/'))->name('account.terminate.index');
+Route::get('/selpics/pricing', fn() => redirect('/'))->name('selpics.pricing');
+Route::get('/selpics', fn() => redirect('/'))->name('selpics');
+Route::get('/workspace/attach-youbox', fn() => redirect('/'))->name('workspace.attach-youbox');
+Route::get('/account/terminate', fn() => redirect('/'))->name('account.terminate.index');
 
-Route::get('/auth/check', [AuthController::class, 'checkAuth'])->name('auth.check');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login/verify/{token}', [AuthController::class, 'verifyLoginToken'])->name('login.verify');
@@ -42,9 +41,6 @@ Route::options('/api/generate-token', function (Request $request) {
     $response = response('', 200);
     $allowedOrigins = App::getAllowedOrigins();
 
-    $response->header('Access-Control-Allow-Credentials', 'true');
-    $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-CSRF-TOKEN');
 
     if ($origin && in_array($origin, $allowedOrigins)) {
         $response->header('Access-Control-Allow-Origin', $origin);
